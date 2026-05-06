@@ -1,10 +1,8 @@
-[![✗](https://img.shields.io/badge/Release-v2.0.0-ffb600.svg?style=for-the-badge)](https://github.com/agustin-golmar/Flex-Bison-Compiler/releases)
+# Nexus
 
-[![✗](https://github.com/agustin-golmar/Flex-Bison-Compiler/actions/workflows/pipeline.yaml/badge.svg?branch=production)](https://github.com/agustin-golmar/Flex-Bison-Compiler/actions/workflows/pipeline.yaml)
+Nexus is a graph-oriented DSL compiler project for Automatas, Teoria de Lenguajes y Compiladores.
 
-# Flex-Bison-Compiler
-
-A base compiler example, developed with Flex and Bison.
+Stage II targets the compiler frontend only: lexical analysis, syntactic analysis, and AST construction. The project is built from the required `Flex-Bison-Compiler` `v2.0.0` base and keeps its Docker, CMake, and shell-script workflow.
 
 * [Requirements](#requirements)
 * [Configuration](#configuration)
