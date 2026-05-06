@@ -3,6 +3,7 @@
 #include "../../support/type/TokenLabel.h"
 #include "AbstractSyntaxTree.h"
 #include "BisonActions.h"
+#include <stdlib.h>
 
 /**
  * The error reporting function for Bison parser.
@@ -27,6 +28,7 @@ void yyerror(const YYLTYPE * location, const char * message) {}
 	/** Terminals. */
 
 	signed int integer;
+	char * string;
 	TokenLabel token;
 
 	/** Non-terminals. */
@@ -48,19 +50,81 @@ void yyerror(const YYLTYPE * location, const char * message) {}
 %destructor { destroyConstant($$); } <constant>
 %destructor { destroyExpression($$); } <expression>
 %destructor { destroyFactor($$); } <factor>
+%destructor { free($$); } <string>
 
 /** Terminals. */
+%token <string> IDENTIFIER
 %token <integer> INTEGER
 %token <token> ADD
+%token <token> ANALYSIS
+%token <token> AS
+%token <token> ASSERT
+%token <token> ASSIGN
+%token <token> ACYCLIC
+%token <token> BINARY_TREE
+%token <token> CAPACITATED
+%token <token> CAPACITY
 %token <token> CLOSE_BRACE
-%token <token> CLOSE_COMMENT
 %token <token> CLOSE_PARENTHESIS
+%token <token> COLON
+%token <token> COMMA
+%token <token> CONNECTED
+%token <token> CONSTRAINTS
+%token <token> DEGREE
+%token <token> DERIVE
+%token <token> DIRECTED
+%token <token> DIRECTED_EDGE
 %token <token> DIV
+%token <token> DOT
+%token <token> EDGES
+%token <token> EXPORT
+%token <token> COMPONENTS
+%token <token> FORALL
+%token <token> FROM
+%token <token> GRAPH
+%token <token> GREATER_EQUAL
+%token <token> GREATER_THAN
+%token <token> GROUPS
+%token <token> IN
+%token <token> INDEGREE
+%token <token> INDUCED_SUBGRAPH
+%token <token> JSON
+%token <token> KIND
+%token <token> LESS_EQUAL
+%token <token> LESS_THAN
+%token <token> MAX_FLOW
 %token <token> MUL
+%token <token> MST
+%token <token> NODES
+%token <token> NOT_EQUAL
+%token <token> ON
 %token <token> OPEN_BRACE
-%token <token> OPEN_COMMENT
 %token <token> OPEN_PARENTHESIS
+%token <token> OUTDEGREE
+%token <token> REACHABLE
+%token <token> REMOVE_SELF_LOOPS
+%token <token> RESULT
+%token <token> ROOT
+%token <token> ROOTED_AT
+%token <token> RUN
+%token <token> SCC
+%token <token> SHORTEST_PATH
+%token <token> SINK
+%token <token> SOURCE
+%token <token> STRONGLY_CONNECTED
 %token <token> SUB
+%token <token> TERMINAL
+%token <token> TO
+%token <token> TOPOLOGICAL_SORT
+%token <token> TRAITS
+%token <token> TRANSPOSE
+%token <token> TREE
+%token <token> UNDIRECTED
+%token <token> UNDIRECTED_EDGE
+%token <token> UNDERLYING
+%token <token> USING
+%token <token> WEIGHT
+%token <token> WEIGHTED
 
 %token <token> IGNORED
 %token <token> UNKNOWN
