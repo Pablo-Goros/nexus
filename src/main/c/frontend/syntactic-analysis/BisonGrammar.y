@@ -78,7 +78,8 @@ void yyerror(const YYLTYPE * location, const char * message) {}
 /** Destructors. */
 %destructor { free($$); } <string>
 
-%destructor { destroyProgram($$); } <program>
+/* No destructor for <program>: ownership is transferred to CompilerState
+ * inside ProgramSemanticAction, and EntryPoint.c destroys it on shutdown. */
 %destructor { destroyTopLevelDecl($$); } <topLevelDecl>
 %destructor { destroyTopLevelDeclList($$); } <topLevelDeclList>
 

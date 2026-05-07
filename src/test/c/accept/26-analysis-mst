@@ -10,4 +10,4 @@ graph G:
         b -- c weight 2
 
 analysis Main on G:
-    run mst as tree
+    run mst as spanning
