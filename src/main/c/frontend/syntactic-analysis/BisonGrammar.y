@@ -250,8 +250,8 @@ program
 	;
 
 top_level_decls
-	: %empty
-																{ $$ = EmptyTopLevelDeclListSemanticAction(); }
+	: top_level_decl
+																{ $$ = AppendTopLevelDeclSemanticAction(EmptyTopLevelDeclListSemanticAction(), $1); }
 	| top_level_decls top_level_decl
 																{ $$ = AppendTopLevelDeclSemanticAction($1, $2); }
 	;
