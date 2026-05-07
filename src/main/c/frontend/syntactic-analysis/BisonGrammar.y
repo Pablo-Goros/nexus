@@ -3,6 +3,7 @@
 #include "../../support/type/TokenLabel.h"
 #include "AbstractSyntaxTree.h"
 #include "BisonActions.h"
+#include <stdbool.h>
 #include <stdlib.h>
 
 /**
@@ -27,17 +28,87 @@ void yyerror(const YYLTYPE * location, const char * message) {}
 	char * string;
 	TokenLabel token;
 
-	/**
-	 * Non-terminals.
-	 *
-	 * Stage II Step 1: introduce the Stage I Nexus grammar first.
-	 * The Nexus AST and semantic actions are wired in on Step 2.
-	 */
-	void * node;
+	/** Non-terminals. */
+	Program * program;
+	TopLevelDecl * topLevelDecl;
+	TopLevelDeclList * topLevelDeclList;
+
+	GraphDecl * graphDecl;
+	DeriveDecl * deriveDecl;
+	AnalysisDecl * analysisDecl;
+
+	GraphKind graphKind;
+	GraphTraits graphTraits;
+
+	NodeAttr nodeAttr;
+	NodeDecl * nodeDecl;
+	NodeDeclList * nodeDeclList;
+
+	EdgeOp edgeOp;
+	EdgeDecl * edgeDecl;
+	EdgeDeclList * edgeDeclList;
+	bool boolean;
+	struct {
+		bool present;
+		int value;
+	} intOpt;
+
+	IdList * idList;
+
+	GroupDecl * groupDecl;
+	GroupDeclList * groupDeclList;
+
+	Constraint * constraint;
+	ConstraintList * constraintList;
+
+	DegreeFn degreeFn;
+	Comparator comparator;
+	Predicate * predicate;
+
+	Transformation * transformation;
+
+	Algorithm * algorithm;
+	RunStmt * runStmt;
+	ExportStmt * exportStmt;
+	AnalysisStmt * analysisStmt;
+	AnalysisStmtList * analysisStmtList;
+	ExportFormat exportFormat;
 }
 
 /** Destructors. */
 %destructor { free($$); } <string>
+
+%destructor { destroyProgram($$); } <program>
+%destructor { destroyTopLevelDecl($$); } <topLevelDecl>
+%destructor { destroyTopLevelDeclList($$); } <topLevelDeclList>
+
+%destructor { destroyGraphDecl($$); } <graphDecl>
+%destructor { destroyDeriveDecl($$); } <deriveDecl>
+%destructor { destroyAnalysisDecl($$); } <analysisDecl>
+
+%destructor { destroyNodeDecl($$); } <nodeDecl>
+%destructor { destroyNodeDeclList($$); } <nodeDeclList>
+
+%destructor { destroyEdgeDecl($$); } <edgeDecl>
+%destructor { destroyEdgeDeclList($$); } <edgeDeclList>
+
+%destructor { destroyIdList($$); } <idList>
+
+%destructor { destroyGroupDecl($$); } <groupDecl>
+%destructor { destroyGroupDeclList($$); } <groupDeclList>
+
+%destructor { destroyConstraint($$); } <constraint>
+%destructor { destroyConstraintList($$); } <constraintList>
+
+%destructor { destroyPredicate($$); } <predicate>
+
+%destructor { destroyTransformation($$); } <transformation>
+
+%destructor { destroyAlgorithm($$); } <algorithm>
+%destructor { destroyRunStmt($$); } <runStmt>
+%destructor { destroyExportStmt($$); } <exportStmt>
+%destructor { destroyAnalysisStmt($$); } <analysisStmt>
+%destructor { destroyAnalysisStmtList($$); } <analysisStmtList>
 
 /** Terminals. */
 %token <string> IDENTIFIER
@@ -114,322 +185,319 @@ void yyerror(const YYLTYPE * location, const char * message) {}
 %token <token> UNKNOWN
 
 /** Non-terminals. */
-%type <node> program
-%type <node> top_level_decls
-%type <node> top_level_decl
+%type <program> program
+%type <topLevelDeclList> top_level_decls
+%type <topLevelDecl> top_level_decl
 
-%type <node> graph_decl
-%type <node> kind_value
-%type <node> traits_section_opt
-%type <node> traits_list
-%type <node> trait
-%type <node> nodes_section
-%type <node> node_decls_opt
-%type <node> node_decls_opt_nonempty
-%type <node> node_decl
-%type <node> node_attr_opt
-%type <node> edges_section
-%type <node> edge_decls_opt
-%type <node> edge_decls_opt_nonempty
-%type <node> edge_decl
-%type <node> edge_operator
-%type <node> edge_attr_opt
-%type <node> weight_attr_opt
-%type <node> capacity_attr_opt
-%type <node> groups_section_opt
-%type <node> group_decls_opt
-%type <node> group_decls_opt_nonempty
-%type <node> group_decl
-%type <node> id_list
-%type <node> id_list_tail
-%type <node> constraints_section_opt
-%type <node> constraint_decls_opt
-%type <node> constraint_decls_opt_nonempty
-%type <node> constraint_decl
-%type <node> simple_constraint
-%type <node> reachable_constraint
-%type <node> tree_constraint
-%type <node> binary_tree_constraint
-%type <node> forall_constraint
-%type <node> predicate
-%type <node> degree_fn
-%type <node> comparator
+%type <graphDecl> graph_decl
+%type <graphKind> kind_value
+%type <graphTraits> traits_section_opt
+%type <graphTraits> traits_list
 
-%type <node> derive_decl
-%type <node> transformation
+%type <nodeDeclList> nodes_section
+%type <nodeDeclList> node_decls_opt
+%type <nodeDeclList> node_decls_opt_nonempty
+%type <nodeDecl> node_decl
+%type <nodeAttr> node_attr_opt
 
-%type <node> analysis_decl
-%type <node> analysis_stmts_opt
-%type <node> analysis_stmts_opt_nonempty
-%type <node> analysis_stmt
-%type <node> run_stmt
-%type <node> algorithm
-%type <node> export_stmt
-%type <node> export_target
-%type <node> export_format
+%type <edgeDeclList> edges_section
+%type <edgeDeclList> edge_decls_opt
+%type <edgeDeclList> edge_decls_opt_nonempty
+%type <edgeDecl> edge_decl
+%type <edgeOp> edge_operator
+%type <intOpt> weight_attr_opt
+%type <intOpt> capacity_attr_opt
+
+%type <groupDeclList> groups_section_opt
+%type <groupDeclList> group_decls_opt
+%type <groupDeclList> group_decls_opt_nonempty
+%type <groupDecl> group_decl
+%type <idList> id_list
+%type <idList> id_list_tail
+
+%type <constraintList> constraints_section_opt
+%type <constraintList> constraint_decls_opt
+%type <constraintList> constraint_decls_opt_nonempty
+%type <constraint> constraint_decl
+%type <constraint> simple_constraint
+%type <constraint> reachable_constraint
+%type <constraint> tree_constraint
+%type <constraint> binary_tree_constraint
+%type <constraint> forall_constraint
+%type <predicate> predicate
+%type <degreeFn> degree_fn
+%type <comparator> comparator
+
+%type <deriveDecl> derive_decl
+%type <transformation> transformation
+
+%type <analysisDecl> analysis_decl
+%type <analysisStmtList> analysis_stmts_opt
+%type <analysisStmtList> analysis_stmts_opt_nonempty
+%type <analysisStmt> analysis_stmt
+%type <runStmt> run_stmt
+%type <algorithm> algorithm
+%type <exportStmt> export_stmt
+%type <exportFormat> export_format
 
 %%
 
 // IMPORTANT: To use λ in the following grammar, use the %empty symbol.
 
 program
-	: top_level_decls											{ $$ = $1; }
+	: top_level_decls
+																{ $$ = ProgramSemanticAction($1); }
 	;
 
 top_level_decls
-	: top_level_decl											{ $$ = $1; }
-	| top_level_decls top_level_decl							{ $$ = $1; }
+	: %empty
+																{ $$ = EmptyTopLevelDeclListSemanticAction(); }
+	| top_level_decls top_level_decl
+																{ $$ = AppendTopLevelDeclSemanticAction($1, $2); }
 	;
 
 top_level_decl
-	: graph_decl												{ $$ = $1; }
-	| derive_decl												{ $$ = $1; }
-	| analysis_decl											{ $$ = $1; }
+	: graph_decl
+																{ $$ = GraphTopLevelDeclSemanticAction($1); }
+	| derive_decl
+																{ $$ = DeriveTopLevelDeclSemanticAction($1); }
+	| analysis_decl
+																{ $$ = AnalysisTopLevelDeclSemanticAction($1); }
 	;
 
 // Graph declarations (fixed section order: kind, optional traits, nodes, edges, optional groups, optional constraints)
 
 graph_decl
 	: GRAPH IDENTIFIER COLON KIND kind_value traits_section_opt nodes_section edges_section groups_section_opt constraints_section_opt
-																	{ $$ = NULL; }
+																	{ $$ = GraphDeclSemanticAction($2, $5, $6, $7, $8, $9, $10); }
 	;
 
 kind_value
-	: DIRECTED												{ $$ = NULL; }
-	| UNDIRECTED											{ $$ = NULL; }
+	: DIRECTED												{ $$ = DirectedKindSemanticAction(); }
+	| UNDIRECTED											{ $$ = UndirectedKindSemanticAction(); }
 	;
 
 traits_section_opt
-	: %empty												{ $$ = NULL; }
-	| TRAITS traits_list										{ $$ = NULL; }
+	: %empty												{ $$ = EmptyTraitsSemanticAction(); }
+	| TRAITS traits_list										{ $$ = $2; }
 	;
 
 traits_list
-	: trait													{ $$ = NULL; }
-	| traits_list trait										{ $$ = NULL; }
-	;
-
-trait
-	: WEIGHTED												{ $$ = NULL; }
-	| CAPACITATED											{ $$ = NULL; }
+	: WEIGHTED												{ $$ = AddWeightedTraitSemanticAction(EmptyTraitsSemanticAction()); }
+	| CAPACITATED											{ $$ = AddCapacitatedTraitSemanticAction(EmptyTraitsSemanticAction()); }
+	| traits_list WEIGHTED									{ $$ = AddWeightedTraitSemanticAction($1); }
+	| traits_list CAPACITATED								{ $$ = AddCapacitatedTraitSemanticAction($1); }
 	;
 
 nodes_section
-	: NODES COLON node_decls_opt									{ $$ = NULL; }
+	: NODES COLON node_decls_opt									{ $$ = $3; }
 	;
 
 node_decls_opt
-	: %empty												{ $$ = NULL; }
-	| node_decls_opt_nonempty									{ $$ = NULL; }
+	: %empty												{ $$ = EmptyNodeDeclListSemanticAction(); }
+	| node_decls_opt_nonempty									{ $$ = $1; }
 	;
 
 node_decls_opt_nonempty
-	: node_decl												{ $$ = NULL; }
-	| node_decls_opt_nonempty node_decl								{ $$ = NULL; }
+	: node_decl												{ $$ = AppendNodeDeclSemanticAction(EmptyNodeDeclListSemanticAction(), $1); }
+	| node_decls_opt_nonempty node_decl								{ $$ = AppendNodeDeclSemanticAction($1, $2); }
 	;
 
 node_decl
-	: IDENTIFIER node_attr_opt									{ $$ = NULL; }
+	: IDENTIFIER node_attr_opt									{ $$ = NodeDeclSemanticAction($1, $2); }
 	;
 
 node_attr_opt
-	: %empty												{ $$ = NULL; }
-	| ROOT													{ $$ = NULL; }
-	| SOURCE												{ $$ = NULL; }
-	| SINK													{ $$ = NULL; }
-	| TERMINAL											{ $$ = NULL; }
+	: %empty												{ $$ = EmptyNodeAttrSemanticAction(); }
+	| ROOT													{ $$ = RootNodeAttrSemanticAction(); }
+	| SOURCE												{ $$ = SourceNodeAttrSemanticAction(); }
+	| SINK													{ $$ = SinkNodeAttrSemanticAction(); }
+	| TERMINAL											{ $$ = TerminalNodeAttrSemanticAction(); }
 	;
 
 edges_section
-	: EDGES COLON edge_decls_opt									{ $$ = NULL; }
+	: EDGES COLON edge_decls_opt									{ $$ = $3; }
 	;
 
 edge_decls_opt
-	: %empty												{ $$ = NULL; }
-	| edge_decls_opt_nonempty									{ $$ = NULL; }
+	: %empty												{ $$ = EmptyEdgeDeclListSemanticAction(); }
+	| edge_decls_opt_nonempty									{ $$ = $1; }
 	;
 
 edge_decls_opt_nonempty
-	: edge_decl												{ $$ = NULL; }
-	| edge_decls_opt_nonempty edge_decl								{ $$ = NULL; }
+	: edge_decl												{ $$ = AppendEdgeDeclSemanticAction(EmptyEdgeDeclListSemanticAction(), $1); }
+	| edge_decls_opt_nonempty edge_decl								{ $$ = AppendEdgeDeclSemanticAction($1, $2); }
 	;
 
 edge_decl
-	: IDENTIFIER edge_operator IDENTIFIER edge_attr_opt					{ $$ = NULL; }
+	: IDENTIFIER edge_operator IDENTIFIER weight_attr_opt capacity_attr_opt
+																{ $$ = EdgeDeclSemanticAction($1, $2, $3, $4.present, $4.value, $5.present, $5.value); }
 	;
 
 edge_operator
-	: DIRECTED_EDGE											{ $$ = NULL; }
-	| UNDIRECTED_EDGE										{ $$ = NULL; }
+	: DIRECTED_EDGE											{ $$ = DirectedEdgeOpSemanticAction(); }
+	| UNDIRECTED_EDGE										{ $$ = UndirectedEdgeOpSemanticAction(); }
 	;
 
 // Fixed order: optional weight first, then optional capacity.
-edge_attr_opt
-	: weight_attr_opt capacity_attr_opt							{ $$ = NULL; }
-	;
-
 weight_attr_opt
-	: %empty												{ $$ = NULL; }
-	| WEIGHT INTEGER										{ $$ = NULL; }
+	: %empty												{ $$.present = false; $$.value = 0; }
+	| WEIGHT INTEGER										{ $$.present = true; $$.value = $2; }
 	;
 
 capacity_attr_opt
-	: %empty												{ $$ = NULL; }
-	| CAPACITY INTEGER										{ $$ = NULL; }
+	: %empty												{ $$.present = false; $$.value = 0; }
+	| CAPACITY INTEGER										{ $$.present = true; $$.value = $2; }
 	;
 
 groups_section_opt
-	: %empty												{ $$ = NULL; }
-	| GROUPS COLON group_decls_opt								{ $$ = NULL; }
+	: %empty												{ $$ = EmptyGroupDeclListSemanticAction(); }
+	| GROUPS COLON group_decls_opt								{ $$ = $3; }
 	;
 
 group_decls_opt
-	: %empty												{ $$ = NULL; }
-	| group_decls_opt_nonempty									{ $$ = NULL; }
+	: %empty												{ $$ = EmptyGroupDeclListSemanticAction(); }
+	| group_decls_opt_nonempty									{ $$ = $1; }
 	;
 
 group_decls_opt_nonempty
-	: group_decl												{ $$ = NULL; }
-	| group_decls_opt_nonempty group_decl								{ $$ = NULL; }
+	: group_decl												{ $$ = AppendGroupDeclSemanticAction(EmptyGroupDeclListSemanticAction(), $1); }
+	| group_decls_opt_nonempty group_decl								{ $$ = AppendGroupDeclSemanticAction($1, $2); }
 	;
 
 group_decl
-	: IDENTIFIER ASSIGN OPEN_BRACE id_list CLOSE_BRACE					{ $$ = NULL; }
+	: IDENTIFIER ASSIGN OPEN_BRACE id_list CLOSE_BRACE					{ $$ = GroupDeclSemanticAction($1, $4); }
 	;
 
 id_list
-	: IDENTIFIER id_list_tail									{ $$ = NULL; }
+	: IDENTIFIER id_list_tail									{ $$ = AppendIdListSemanticAction($2, $1); }
 	;
 
 id_list_tail
 	: %empty												{ $$ = NULL; }
-	| id_list_tail COMMA IDENTIFIER								{ $$ = NULL; }
+	| id_list_tail COMMA IDENTIFIER								{ $$ = AppendIdListSemanticAction($1, $3); }
 	;
 
 constraints_section_opt
-	: %empty												{ $$ = NULL; }
-	| CONSTRAINTS COLON constraint_decls_opt							{ $$ = NULL; }
+	: %empty												{ $$ = EmptyConstraintListSemanticAction(); }
+	| CONSTRAINTS COLON constraint_decls_opt							{ $$ = $3; }
 	;
 
 constraint_decls_opt
-	: %empty												{ $$ = NULL; }
-	| constraint_decls_opt_nonempty									{ $$ = NULL; }
+	: %empty												{ $$ = EmptyConstraintListSemanticAction(); }
+	| constraint_decls_opt_nonempty									{ $$ = $1; }
 	;
 
 constraint_decls_opt_nonempty
-	: constraint_decl											{ $$ = NULL; }
-	| constraint_decls_opt_nonempty constraint_decl							{ $$ = NULL; }
+	: constraint_decl											{ $$ = AppendConstraintSemanticAction(EmptyConstraintListSemanticAction(), $1); }
+	| constraint_decls_opt_nonempty constraint_decl							{ $$ = AppendConstraintSemanticAction($1, $2); }
 	;
 
 constraint_decl
-	: ASSERT simple_constraint									{ $$ = NULL; }
-	| ASSERT reachable_constraint								{ $$ = NULL; }
-	| ASSERT tree_constraint									{ $$ = NULL; }
-	| ASSERT binary_tree_constraint							{ $$ = NULL; }
-	| ASSERT forall_constraint								{ $$ = NULL; }
+	: ASSERT simple_constraint									{ $$ = $2; }
+	| ASSERT reachable_constraint								{ $$ = $2; }
+	| ASSERT tree_constraint									{ $$ = $2; }
+	| ASSERT binary_tree_constraint							{ $$ = $2; }
+	| ASSERT forall_constraint								{ $$ = $2; }
 	;
 
 simple_constraint
-	: CONNECTED												{ $$ = NULL; }
-	| STRONGLY_CONNECTED										{ $$ = NULL; }
-	| ACYCLIC												{ $$ = NULL; }
+	: CONNECTED												{ $$ = SimpleConnectedConstraintSemanticAction(); }
+	| STRONGLY_CONNECTED										{ $$ = SimpleStronglyConnectedConstraintSemanticAction(); }
+	| ACYCLIC												{ $$ = SimpleAcyclicConstraintSemanticAction(); }
 	;
 
 reachable_constraint
-	: REACHABLE IDENTIFIER DIRECTED_EDGE IDENTIFIER					{ $$ = NULL; }
+	: REACHABLE IDENTIFIER DIRECTED_EDGE IDENTIFIER					{ $$ = ReachableConstraintSemanticAction($2, $4); }
 	;
 
 tree_constraint
-	: TREE ROOTED_AT IDENTIFIER								{ $$ = NULL; }
+	: TREE ROOTED_AT IDENTIFIER								{ $$ = TreeConstraintSemanticAction($3); }
 	;
 
 binary_tree_constraint
-	: BINARY_TREE ROOTED_AT IDENTIFIER							{ $$ = NULL; }
+	: BINARY_TREE ROOTED_AT IDENTIFIER							{ $$ = BinaryTreeConstraintSemanticAction($3); }
 	;
 
 forall_constraint
-	: FORALL IDENTIFIER IN IDENTIFIER COLON predicate					{ $$ = NULL; }
+	: FORALL IDENTIFIER IN IDENTIFIER COLON predicate					{ $$ = ForallConstraintSemanticAction($2, $4, $6); }
 	;
 
 predicate
 	: degree_fn OPEN_PARENTHESIS IDENTIFIER CLOSE_PARENTHESIS comparator INTEGER
-																	{ $$ = NULL; }
+																	{ $$ = PredicateSemanticAction($1, $3, $5, $6); }
 	;
 
 degree_fn
-	: INDEGREE												{ $$ = NULL; }
-	| OUTDEGREE											{ $$ = NULL; }
-	| DEGREE												{ $$ = NULL; }
+	: INDEGREE												{ $$ = IndegreeFnSemanticAction(); }
+	| OUTDEGREE											{ $$ = OutdegreeFnSemanticAction(); }
+	| DEGREE												{ $$ = DegreeFnSemanticAction(); }
 	;
 
 comparator
-	: ASSIGN													{ $$ = NULL; }
-	| NOT_EQUAL												{ $$ = NULL; }
-	| GREATER_EQUAL											{ $$ = NULL; }
-	| LESS_EQUAL											{ $$ = NULL; }
-	| GREATER_THAN											{ $$ = NULL; }
-	| LESS_THAN												{ $$ = NULL; }
+	: ASSIGN													{ $$ = EqComparatorSemanticAction(); }
+	| NOT_EQUAL												{ $$ = NeqComparatorSemanticAction(); }
+	| GREATER_EQUAL											{ $$ = GeqComparatorSemanticAction(); }
+	| LESS_EQUAL											{ $$ = LeqComparatorSemanticAction(); }
+	| GREATER_THAN											{ $$ = GtComparatorSemanticAction(); }
+	| LESS_THAN												{ $$ = LtComparatorSemanticAction(); }
 	;
 
 // Derivations
 
 derive_decl
-	: DERIVE IDENTIFIER FROM IDENTIFIER USING transformation					{ $$ = NULL; }
+	: DERIVE IDENTIFIER FROM IDENTIFIER USING transformation					{ $$ = DeriveDeclSemanticAction($2, $4, $6); }
 	;
 
 transformation
-	: TRANSPOSE												{ $$ = NULL; }
-	| UNDERLYING											{ $$ = NULL; }
-	| REMOVE_SELF_LOOPS										{ $$ = NULL; }
-	| INDUCED_SUBGRAPH OPEN_PARENTHESIS IDENTIFIER CLOSE_PARENTHESIS		{ $$ = NULL; }
+	: TRANSPOSE												{ $$ = TransposeTransformationSemanticAction(); }
+	| UNDERLYING											{ $$ = UnderlyingTransformationSemanticAction(); }
+	| REMOVE_SELF_LOOPS										{ $$ = RemoveSelfLoopsTransformationSemanticAction(); }
+	| INDUCED_SUBGRAPH OPEN_PARENTHESIS IDENTIFIER CLOSE_PARENTHESIS		{ $$ = InducedSubgraphTransformationSemanticAction($3); }
 	;
 
 // Analysis blocks
 
 analysis_decl
-	: ANALYSIS IDENTIFIER ON IDENTIFIER COLON analysis_stmts_opt				{ $$ = NULL; }
+	: ANALYSIS IDENTIFIER ON IDENTIFIER COLON analysis_stmts_opt				{ $$ = AnalysisDeclSemanticAction($2, $4, $6); }
 	;
 
 analysis_stmts_opt
-	: %empty												{ $$ = NULL; }
-	| analysis_stmts_opt_nonempty									{ $$ = NULL; }
+	: %empty												{ $$ = EmptyAnalysisStmtListSemanticAction(); }
+	| analysis_stmts_opt_nonempty									{ $$ = $1; }
 	;
 
 analysis_stmts_opt_nonempty
-	: analysis_stmt											{ $$ = NULL; }
-	| analysis_stmts_opt_nonempty analysis_stmt							{ $$ = NULL; }
+	: analysis_stmt											{ $$ = AppendAnalysisStmtSemanticAction(EmptyAnalysisStmtListSemanticAction(), $1); }
+	| analysis_stmts_opt_nonempty analysis_stmt							{ $$ = AppendAnalysisStmtSemanticAction($1, $2); }
 	;
 
 analysis_stmt
-	: run_stmt												{ $$ = NULL; }
-	| export_stmt											{ $$ = NULL; }
+	: run_stmt												{ $$ = RunAnalysisStmtSemanticAction($1); }
+	| export_stmt											{ $$ = ExportAnalysisStmtSemanticAction($1); }
 	;
 
 run_stmt
-	: RUN algorithm AS IDENTIFIER								{ $$ = NULL; }
+	: RUN algorithm AS IDENTIFIER								{ $$ = RunStmtSemanticAction($2, $4); }
 	;
 
 algorithm
-	: SHORTEST_PATH FROM IDENTIFIER TO IDENTIFIER					{ $$ = NULL; }
-	| TOPOLOGICAL_SORT										{ $$ = NULL; }
-	| COMPONENTS											{ $$ = NULL; }
-	| SCC													{ $$ = NULL; }
-	| MST													{ $$ = NULL; }
-	| MAX_FLOW FROM IDENTIFIER TO IDENTIFIER						{ $$ = NULL; }
+	: SHORTEST_PATH FROM IDENTIFIER TO IDENTIFIER					{ $$ = ShortestPathAlgorithmSemanticAction($3, $5); }
+	| TOPOLOGICAL_SORT										{ $$ = TopologicalSortAlgorithmSemanticAction(); }
+	| COMPONENTS											{ $$ = ComponentsAlgorithmSemanticAction(); }
+	| SCC													{ $$ = SccAlgorithmSemanticAction(); }
+	| MST													{ $$ = MstAlgorithmSemanticAction(); }
+	| MAX_FLOW FROM IDENTIFIER TO IDENTIFIER						{ $$ = MaxFlowAlgorithmSemanticAction($3, $5); }
 	;
 
 export_stmt
-	: EXPORT export_target TO export_format							{ $$ = NULL; }
-	;
-
-export_target
-	: GRAPH													{ $$ = NULL; }
-	| RESULT IDENTIFIER										{ $$ = NULL; }
+	: EXPORT GRAPH TO export_format								{ $$ = ExportGraphStmtSemanticAction($4); }
+	| EXPORT RESULT IDENTIFIER TO export_format						{ $$ = ExportResultStmtSemanticAction($3, $5); }
 	;
 
 export_format
-	: DOT													{ $$ = NULL; }
-	| JSON													{ $$ = NULL; }
+	: DOT													{ $$ = DotFormatSemanticAction(); }
+	| JSON													{ $$ = JsonFormatSemanticAction(); }
 	;
 
 %%
