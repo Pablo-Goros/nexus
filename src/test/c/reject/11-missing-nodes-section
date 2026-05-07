@@ -1,0 +1,4 @@
+graph G:
+    kind directed
+    edges:
+        a -> b
