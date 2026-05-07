@@ -1,0 +1,9 @@
+// Top-level comment.
+graph G:
+    kind directed // inline comment
+    nodes:
+        a // node a
+        b
+    edges:
+        a -> b
+// trailing comment

@@ -1,0 +1,10 @@
+graph G:
+    kind directed
+    nodes:
+        a source
+        b sink
+        c root
+        d terminal
+        e
+    edges:
+        a -> b

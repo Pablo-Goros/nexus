@@ -1,0 +1,10 @@
+graph G:
+    kind directed
+    nodes:
+        a
+        b
+    edges:
+        a -> b
+        b -> a
+    constraints:
+        assert strongly_connected

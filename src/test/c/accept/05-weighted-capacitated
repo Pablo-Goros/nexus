@@ -1,0 +1,8 @@
+graph G:
+    kind directed
+    traits weighted capacitated
+    nodes:
+        a
+        b
+    edges:
+        a -> b weight 3 capacity 9

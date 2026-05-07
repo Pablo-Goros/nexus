@@ -1,0 +1,13 @@
+graph G:
+    kind undirected
+    traits weighted
+    nodes:
+        a
+        b
+        c
+    edges:
+        a -- b weight 1
+        b -- c weight 2
+
+analysis Main on G:
+    run mst as tree
