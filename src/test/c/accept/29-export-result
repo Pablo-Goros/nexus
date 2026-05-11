@@ -1,0 +1,14 @@
+graph G:
+    kind directed
+    nodes:
+        a
+        b
+        c
+    edges:
+        a -> b
+        b -> c
+
+analysis Main on G:
+    run topological_sort as order
+    export result order to json
+    export result order to dot

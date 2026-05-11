@@ -1,0 +1,8 @@
+graph G:
+    kind directed
+    nodes:
+        a
+    edges:
+
+analysis Main on G
+    run components as cs

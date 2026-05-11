@@ -3,7 +3,7 @@
 cmake_minimum_required(VERSION 3.28.3)
 
 # Name of the project and language to use (C, in this case).
-project(Flex-Bison-Compiler C)
+project(Nexus C)
 
 # Selects the best strategy according to the available compiler in the system.
 # @see https://cmake.org/cmake/help/latest/variable/CMAKE_LANG_COMPILER_ID.html
@@ -32,7 +32,7 @@ if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
 
 	# Defines the entry-point of the application, and the source-codes (*.c extension).
 	# The header files (*.h extension), are automatically included from the source-codes.
-	add_executable(Flex-Bison-Compiler
+	add_executable(Nexus
 		src/main/c/backend/code-generation/Generator.c
 		src/main/c/backend/domain-specific/Calculator.c
 		src/main/c/EntryPoint.c
@@ -50,7 +50,7 @@ if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
 	)
 
 	# Link final project and libraries.
-	target_link_libraries(Flex-Bison-Compiler)
+	target_link_libraries(Nexus)
 else ()
 	message(NOTICE "The C compiler is unknown.")
 endif ()

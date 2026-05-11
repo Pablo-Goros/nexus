@@ -1,0 +1,13 @@
+graph G:
+    kind directed
+    nodes:
+        a
+        b
+        c
+    edges:
+        a -> b
+        b -> c
+    groups:
+        core = {a, b}
+
+derive H from G using induced_subgraph(core)

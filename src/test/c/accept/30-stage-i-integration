@@ -1,0 +1,25 @@
+graph G:
+    kind directed
+    traits weighted capacitated
+
+    nodes:
+        a source
+        b
+        c sink
+
+    edges:
+        a -> b weight 2
+        b -> c capacity 5
+
+    groups:
+        core = {a, b}
+
+    constraints:
+        assert reachable a -> c
+
+derive R from G using transpose
+
+analysis Main on G:
+    run shortest_path from a to c as path
+    export graph to dot
+    export result path to json

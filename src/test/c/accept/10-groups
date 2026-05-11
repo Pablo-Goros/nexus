@@ -1,0 +1,11 @@
+graph G:
+    kind directed
+    nodes:
+        a
+        b
+        c
+    edges:
+        a -> b
+    groups:
+        core = {a, b}
+        all = {a, b, c}

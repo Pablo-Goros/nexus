@@ -1,0 +1,11 @@
+graph G:
+    kind directed
+    nodes:
+        r root
+        a
+        b
+    edges:
+        r -> a
+        r -> b
+    constraints:
+        assert tree rooted_at r

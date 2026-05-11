@@ -1,0 +1,11 @@
+graph G:
+    kind undirected
+    nodes:
+        a
+        b
+        c
+    edges:
+        a -- b
+
+analysis Main on G:
+    run components as cs

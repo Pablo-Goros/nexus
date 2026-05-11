@@ -1,0 +1,10 @@
+graph G:
+    kind directed
+    nodes:
+        a
+        b
+        c
+    edges:
+        a -> b
+        b -> c
+        a -> c

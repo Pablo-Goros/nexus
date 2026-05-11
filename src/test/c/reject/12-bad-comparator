@@ -1,0 +1,9 @@
+graph G:
+    kind directed
+    nodes:
+        a
+    edges:
+    groups:
+        leaves = {a}
+    constraints:
+        assert forall n in leaves: outdegree(n) == 0

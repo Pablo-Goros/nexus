@@ -1,5 +1,5 @@
 # @see https://hub.docker.com/_/ubuntu
-FROM ubuntu:24.10 AS runner
+FROM ubuntu:latest AS runner
 
 # Installs dependencies.
 RUN apt-get update --yes \

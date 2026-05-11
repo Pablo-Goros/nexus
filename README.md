@@ -1,10 +1,12 @@
-[![✗](https://img.shields.io/badge/Release-v2.0.0-ffb600.svg?style=for-the-badge)](https://github.com/Pablo-Goros/nexus/releases)
+[![Release](https://img.shields.io/badge/Release-v2.0.0-ffb600.svg?style=for-the-badge)](https://github.com/Pablo-Goros/nexus/releases)
 
-[![✗](https://github.com/Pablo-Goros/nexus/actions/workflows/pipeline.yaml/badge.svg?branch=production)](https://github.com/Pablo-Goros/nexus/actions/workflows/pipeline.yaml)
+[![CI](https://github.com/Pablo-Goros/nexus/actions/workflows/pipeline.yaml/badge.svg?branch=production)](https://github.com/Pablo-Goros/nexus/actions/workflows/pipeline.yaml)
 
-# Flex-Bison-Compiler
+# Nexus
 
-A base compiler example, developed with Flex and Bison.
+Nexus is a graph-oriented DSL compiler project for Automatas, Teoria de Lenguajes y Compiladores.
+
+Stage II targets the compiler frontend only: lexical analysis, syntactic analysis, and AST construction. The project is built from the required `Flex-Bison-Compiler` `v2.0.0` base and keeps its Docker, CMake, and shell-script workflow.
 
 * [Requirements](#requirements)
 * [Configuration](#configuration)
