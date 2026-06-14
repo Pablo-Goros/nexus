@@ -46,7 +46,7 @@ Replaces the leftover `Calculator` stub's slot with a permissive `SemanticAnalyz
 - Modify: `CMakeLists.txt`
 - Delete: `src/main/c/backend/domain-specific/Calculator.h`, `src/main/c/backend/domain-specific/Calculator.c`
 
-- [ ] **Step 1: Create the header**
+- [x] **Step 1: Create the header**
 
 `src/main/c/backend/semantic-analysis/SemanticAnalyzer.h`:
 
@@ -77,7 +77,7 @@ SemanticResult executeSemanticAnalysis(CompilerState * compilerState);
 #endif
 ```
 
-- [ ] **Step 2: Create the permissive implementation**
+- [x] **Step 2: Create the permissive implementation**
 
 `src/main/c/backend/semantic-analysis/SemanticAnalyzer.c`:
 
@@ -116,7 +116,7 @@ SemanticResult executeSemanticAnalysis(CompilerState * compilerState) {
 }
 ```
 
-- [ ] **Step 3: Remove the leftover `value` field from compiler state**
+- [x] **Step 3: Remove the leftover `value` field from compiler state**
 
 In `src/main/c/support/type/CompilerState.h`, delete the `value` field and its comment block so the struct is:
 
@@ -127,7 +127,7 @@ typedef struct {
 } CompilerState;
 ```
 
-- [ ] **Step 4: Rewire `EntryPoint.c`**
+- [x] **Step 4: Rewire `EntryPoint.c`**
 
 In `src/main/c/EntryPoint.c`: replace `#include "backend/domain-specific/Calculator.h"` with `#include "backend/semantic-analysis/SemanticAnalyzer.h"`. In the module destructor array, replace `initializeCalculatorModule(),` with `initializeSemanticAnalyzerModule(),`. Change the `CompilerState` initializer to `CompilerState compilerState = { .abstractSyntaxtTree = NULL };`. Replace the backend block with:
 
@@ -147,7 +147,7 @@ In `src/main/c/EntryPoint.c`: replace `#include "backend/domain-specific/Calcula
 		// ----------------------------------------------------------------------------------------
 ```
 
-- [ ] **Step 5: Update CMake; delete Calculator**
+- [x] **Step 5: Update CMake; delete Calculator**
 
 In `CMakeLists.txt`, inside `add_executable(Nexus ...)` replace the line
 `src/main/c/backend/domain-specific/Calculator.c` with
@@ -157,7 +157,7 @@ In `CMakeLists.txt`, inside `add_executable(Nexus ...)` replace the line
 git rm src/main/c/backend/domain-specific/Calculator.c src/main/c/backend/domain-specific/Calculator.h
 ```
 
-- [ ] **Step 6: Build and run the full suite**
+- [x] **Step 6: Build and run the full suite**
 
 ```bash
 src/main/bash/build.sh
@@ -165,7 +165,7 @@ src/main/bash/test.sh
 ```
 Expected: build succeeds with no Bison conflicts; all 31 accept tests exit 0; all 12 reject tests exit non-zero (they still fail at parse time). The pipeline now goes through `SemanticAnalyzer` instead of `Calculator`.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add -A
