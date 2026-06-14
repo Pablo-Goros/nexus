@@ -627,7 +627,7 @@ Edges and group members must reference nodes declared in the same graph. Reuse t
 - Create: `src/test/c/reject-semantic/06-undeclared-edge-endpoint`
 - Create: `src/test/c/reject-semantic/07-undeclared-group-member`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `src/test/c/reject-semantic/06-undeclared-edge-endpoint`:
 
@@ -652,14 +652,14 @@ graph G:
         x = {a, b}
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 ```bash
 src/main/bash/build.sh && src/main/bash/test.sh
 ```
 Expected: tests 06 and 07 report `but it accepts (status 0)`.
 
-- [ ] **Step 3: Implement reference checks inside the graph scope**
+- [x] **Step 3: Implement reference checks inside the graph scope**
 
 In `_checkGraphScope`, after the node/group sets are populated and before they are destroyed, add edge-endpoint and group-member resolution:
 
@@ -684,14 +684,14 @@ In `_checkGraphScope`, after the node/group sets are populated and before they a
 
 (Place this block after the existing group-duplicate loop, while `nodes` and `groups` are still alive.)
 
-- [ ] **Step 4: Verify GREEN**
+- [x] **Step 4: Verify GREEN**
 
 ```bash
 src/main/bash/build.sh && src/main/bash/test.sh
 ```
 Expected: tests 06 and 07 now report `and it does`; full suite exits 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A

@@ -45,6 +45,22 @@ static void _checkGraphScope(Analyzer * a, GraphDecl * g) {
 			_error(a, "Duplicate group identifier: '%s'.", it->value->name);
 		}
 	}
+	for (EdgeDeclList * it = g->edges; it != NULL; it = it->next) {
+		EdgeDecl * e = it->value;
+		if (!idSetContains(nodes, e->from)) {
+			_error(a, "Edge references undeclared node: '%s'.", e->from);
+		}
+		if (!idSetContains(nodes, e->to)) {
+			_error(a, "Edge references undeclared node: '%s'.", e->to);
+		}
+	}
+	for (GroupDeclList * it = g->groups; it != NULL; it = it->next) {
+		for (IdList * m = it->value->members; m != NULL; m = m->next) {
+			if (!idSetContains(nodes, m->value)) {
+				_error(a, "Group references undeclared node: '%s'.", m->value);
+			}
+		}
+	}
 	destroyIdSet(nodes);
 	destroyIdSet(groups);
 }
