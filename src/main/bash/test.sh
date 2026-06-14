@@ -40,5 +40,20 @@ for test in $(ls src/test/c/reject/); do
 done
 echo ""
 
+echo "Compiler should reject (semantic)..."
+echo ""
+
+for test in $(ls src/test/c/reject-semantic/); do
+	cat "src/test/c/reject-semantic/$test" | ".build/Nexus" >/dev/null 2>&1
+	RESULT="$?"
+	if [ "$RESULT" != "0" ]; then
+		echo -e "    $test, ${GREEN}and it does${OFF} (status $RESULT)"
+	else
+		STATUS=1
+		echo -e "    $test, ${RED}but it accepts${OFF} (status $RESULT)"
+	fi
+done
+echo ""
+
 echo "All done."
 exit $STATUS

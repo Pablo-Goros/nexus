@@ -183,7 +183,7 @@ A string hash-set with insert-if-absent semantics — the building block for eve
 - Create: `src/main/c/support/symbol-table/IdSet.c`
 - Modify: `CMakeLists.txt`
 
-- [ ] **Step 1: Create the header**
+- [x] **Step 1: Create the header**
 
 `src/main/c/support/symbol-table/IdSet.h`:
 
@@ -209,7 +209,7 @@ bool idSetContains(const IdSet * set, const char * id);
 #endif
 ```
 
-- [ ] **Step 2: Create the implementation**
+- [x] **Step 2: Create the implementation**
 
 `src/main/c/support/symbol-table/IdSet.c`:
 
@@ -283,12 +283,12 @@ bool idSetAdd(IdSet * set, const char * id) {
 }
 ```
 
-- [ ] **Step 3: Add to CMake**
+- [x] **Step 3: Add to CMake**
 
 In `CMakeLists.txt`, add to `add_executable(Nexus ...)`:
 `src/main/c/support/symbol-table/IdSet.c`
 
-- [ ] **Step 4: Build and verify the suite stays green**
+- [x] **Step 4: Build and verify the suite stays green**
 
 ```bash
 src/main/bash/build.sh
@@ -296,7 +296,7 @@ src/main/bash/test.sh
 ```
 Expected: build succeeds; 31 accept exit 0; 12 reject exit non-zero. `IdSet` compiles and links but is not exercised yet.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A
