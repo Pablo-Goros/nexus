@@ -88,6 +88,48 @@ static void _error(Analyzer * a, const char * format, const char * arg) {
 	a->errors++;
 }
 
+static void _checkConstraints(Analyzer * a, GraphDecl * g, GraphInfo * info) {
+	for (ConstraintList * it = g->constraints; it != NULL; it = it->next) {
+		Constraint * c = it->value;
+		switch (c->type) {
+			case CONSTRAINT_SIMPLE:
+				if (c->simple == SIMPLE_STRONGLY_CONNECTED
+						&& g->kind != GRAPH_KIND_DIRECTED) {
+					_error(a, "'strongly_connected' requires a directed graph: '%s'.", g->id);
+				}
+				break;
+			case CONSTRAINT_REACHABLE:
+				if (!idSetContains(info->nodes, c->reachable.from)) {
+					_error(a, "Constraint references undeclared node: '%s'.", c->reachable.from);
+				}
+				if (!idSetContains(info->nodes, c->reachable.to)) {
+					_error(a, "Constraint references undeclared node: '%s'.", c->reachable.to);
+				}
+				break;
+			case CONSTRAINT_TREE:
+				if (!idSetContains(info->nodes, c->tree.root)) {
+					_error(a, "tree 'rooted_at' references undeclared node: '%s'.", c->tree.root);
+				}
+				break;
+			case CONSTRAINT_BINARY_TREE:
+				if (!idSetContains(info->nodes, c->binaryTree.root)) {
+					_error(a, "binary_tree 'rooted_at' references undeclared node: '%s'.",
+						c->binaryTree.root);
+				}
+				break;
+			case CONSTRAINT_FORALL:
+				if (!idSetContains(info->groups, c->forall.group)) {
+					_error(a, "forall references undeclared group: '%s'.", c->forall.group);
+				}
+				if (strcmp(c->forall.predicate->var, c->forall.var) != 0) {
+					_error(a, "forall predicate variable must be the bound variable: '%s'.",
+						c->forall.var);
+				}
+				break;
+		}
+	}
+}
+
 static void _checkGraphScope(Analyzer * a, GraphDecl * g) {
 	GraphInfo * info = _registerGraph(a, g->id, g->kind, g->traits);
 	for (NodeDeclList * it = g->nodes; it != NULL; it = it->next) {
@@ -108,6 +150,18 @@ static void _checkGraphScope(Analyzer * a, GraphDecl * g) {
 		if (!idSetContains(info->nodes, e->to)) {
 			_error(a, "Edge references undeclared node: '%s'.", e->to);
 		}
+		if (e->hasWeight && !g->traits.weighted) {
+			_error(a, "Edge uses 'weight' but graph '%s' is not weighted.", g->id);
+		}
+		if (e->hasCapacity && !g->traits.capacitated) {
+			_error(a, "Edge uses 'capacity' but graph '%s' is not capacitated.", g->id);
+		}
+		if (e->op == EDGE_OP_DIRECTED && g->kind != GRAPH_KIND_DIRECTED) {
+			_error(a, "Directed edge '->' in undirected graph '%s'.", g->id);
+		}
+		if (e->op == EDGE_OP_UNDIRECTED && g->kind != GRAPH_KIND_UNDIRECTED) {
+			_error(a, "Undirected edge '--' in directed graph '%s'.", g->id);
+		}
 	}
 	for (GroupDeclList * it = g->groups; it != NULL; it = it->next) {
 		for (IdList * m = it->value->members; m != NULL; m = m->next) {
@@ -116,6 +170,7 @@ static void _checkGraphScope(Analyzer * a, GraphDecl * g) {
 			}
 		}
 	}
+	_checkConstraints(a, g, info);
 }
 
 static void _checkAnalysisScope(Analyzer * a, AnalysisDecl * an) {
@@ -176,6 +231,14 @@ static void _checkTopLevel(Analyzer * a, TopLevelDecl * decl) {
 				GraphInfo * derived = _registerGraph(a, d->newId, kind, src->traits);
 				_copyNodeIds(derived, src);
 				_copyGroupIds(derived, src);
+				if (d->transformation->type == TRANSFORMATION_TRANSPOSE
+						&& src->kind != GRAPH_KIND_DIRECTED) {
+					_error(a, "'transpose' requires a directed source graph: '%s'.", d->fromId);
+				}
+				if (d->transformation->type == TRANSFORMATION_UNDERLYING
+						&& src->kind != GRAPH_KIND_DIRECTED) {
+					_error(a, "'underlying' requires a directed source graph: '%s'.", d->fromId);
+				}
 				if (d->transformation->type == TRANSFORMATION_INDUCED_SUBGRAPH
 						&& !idSetContains(src->groups, d->transformation->group)) {
 					_error(a, "induced_subgraph references undeclared group: '%s'.",

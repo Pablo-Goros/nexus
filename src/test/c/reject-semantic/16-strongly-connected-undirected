@@ -1,0 +1,7 @@
+graph G:
+    kind undirected
+    nodes:
+        a
+    edges:
+    constraints:
+        assert strongly_connected
