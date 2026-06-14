@@ -1,0 +1,8 @@
+graph G:
+    kind directed
+    nodes:
+        a
+    edges:
+    groups:
+        x = {a}
+        x = {a}

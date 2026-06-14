@@ -516,7 +516,7 @@ Per-graph scopes for node/group ids and a per-analysis scope for result ids.
 - Create: `src/test/c/reject-semantic/04-duplicate-group`
 - Create: `src/test/c/reject-semantic/05-duplicate-result`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `src/test/c/reject-semantic/03-duplicate-node`:
 
@@ -557,14 +557,14 @@ analysis M on G:
     run topological_sort as r
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 ```bash
 src/main/bash/build.sh && src/main/bash/test.sh
 ```
 Expected: the three new programs report `but it accepts (status 0)`.
 
-- [ ] **Step 3: Implement per-graph and per-analysis duplicate checks**
+- [x] **Step 3: Implement per-graph and per-analysis duplicate checks**
 
 In `SemanticAnalyzer.c`, add two helpers and call them from `_checkTopLevel`. Add before `_checkTopLevel`:
 
@@ -602,14 +602,14 @@ static void _checkAnalysisScope(Analyzer * a, AnalysisDecl * an) {
 
 In `_checkTopLevel`, after the duplicate-graph `idSetAdd` for `TOP_LEVEL_GRAPH`, add `_checkGraphScope(a, g);`. In the `TOP_LEVEL_ANALYSIS` case, after the duplicate-analysis `idSetAdd`, add `_checkAnalysisScope(a, an);`.
 
-- [ ] **Step 4: Verify GREEN**
+- [x] **Step 4: Verify GREEN**
 
 ```bash
 src/main/bash/build.sh && src/main/bash/test.sh
 ```
 Expected: tests 03–05 now report `and it does`; full suite exits 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A

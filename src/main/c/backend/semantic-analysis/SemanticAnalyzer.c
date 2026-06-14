@@ -32,6 +32,36 @@ static void _error(Analyzer * a, const char * format, const char * arg) {
 	a->errors++;
 }
 
+static void _checkGraphScope(Analyzer * a, GraphDecl * g) {
+	IdSet * nodes = createIdSet();
+	IdSet * groups = createIdSet();
+	for (NodeDeclList * it = g->nodes; it != NULL; it = it->next) {
+		if (!idSetAdd(nodes, it->value->id)) {
+			_error(a, "Duplicate node identifier: '%s'.", it->value->id);
+		}
+	}
+	for (GroupDeclList * it = g->groups; it != NULL; it = it->next) {
+		if (!idSetAdd(groups, it->value->name)) {
+			_error(a, "Duplicate group identifier: '%s'.", it->value->name);
+		}
+	}
+	destroyIdSet(nodes);
+	destroyIdSet(groups);
+}
+
+static void _checkAnalysisScope(Analyzer * a, AnalysisDecl * an) {
+	IdSet * results = createIdSet();
+	for (AnalysisStmtList * it = an->statements; it != NULL; it = it->next) {
+		if (it->value->type == ANALYSIS_STMT_RUN) {
+			char * resultId = it->value->run->resultId;
+			if (!idSetAdd(results, resultId)) {
+				_error(a, "Duplicate result identifier: '%s'.", resultId);
+			}
+		}
+	}
+	destroyIdSet(results);
+}
+
 static void _checkTopLevel(Analyzer * a, TopLevelDecl * decl) {
 	switch (decl->type) {
 		case TOP_LEVEL_GRAPH: {
@@ -39,6 +69,7 @@ static void _checkTopLevel(Analyzer * a, TopLevelDecl * decl) {
 			if (!idSetAdd(a->graphIds, g->id)) {
 				_error(a, "Duplicate graph identifier: '%s'.", g->id);
 			}
+			_checkGraphScope(a, g);
 			break;
 		}
 		case TOP_LEVEL_DERIVE: {
@@ -53,6 +84,7 @@ static void _checkTopLevel(Analyzer * a, TopLevelDecl * decl) {
 			if (!idSetAdd(a->analysisIds, an->id)) {
 				_error(a, "Duplicate analysis identifier: '%s'.", an->id);
 			}
+			_checkAnalysisScope(a, an);
 			break;
 		}
 	}
