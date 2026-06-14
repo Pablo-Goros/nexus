@@ -1,0 +1,10 @@
+graph G:
+    kind directed
+    nodes:
+        a
+        b
+    edges:
+        a -> b
+analysis M on G:
+    run topological_sort as r
+    export result nope to json

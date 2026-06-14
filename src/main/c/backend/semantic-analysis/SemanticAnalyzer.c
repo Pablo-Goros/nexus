@@ -1,5 +1,7 @@
 #include "SemanticAnalyzer.h"
 #include "../../support/symbol-table/IdSet.h"
+#include <stdlib.h>
+#include <string.h>
 
 /* MODULE INTERNAL STATE */
 
@@ -21,11 +23,65 @@ ModuleDestructor initializeSemanticAnalyzerModule() {
 
 /* ANALYSIS STATE (per run) */
 
+typedef struct GraphInfo {
+	char * id;             /* not owned: points into the AST */
+	GraphKind kind;
+	GraphTraits traits;
+	IdSet * nodes;         /* owned */
+	IdSet * groups;        /* owned */
+	struct GraphInfo * next;
+} GraphInfo;
+
 typedef struct {
 	IdSet * graphIds;      /* global: declared + derived graph ids */
 	IdSet * analysisIds;   /* global: analysis ids */
+	GraphInfo * graphs;
 	int errors;
 } Analyzer;
+
+static GraphInfo * _findGraph(Analyzer * a, const char * id) {
+	for (GraphInfo * g = a->graphs; g != NULL; g = g->next) {
+		if (strcmp(g->id, id) == 0) {
+			return g;
+		}
+	}
+	return NULL;
+}
+
+static GraphInfo * _registerGraph(Analyzer * a, char * id, GraphKind kind, GraphTraits traits) {
+	GraphInfo * info = calloc(1, sizeof(GraphInfo));
+	info->id = id;
+	info->kind = kind;
+	info->traits = traits;
+	info->nodes = createIdSet();
+	info->groups = createIdSet();
+	info->next = a->graphs;
+	a->graphs = info;
+	return info;
+}
+
+static void _destroyGraphs(Analyzer * a) {
+	for (GraphInfo * g = a->graphs; g != NULL; ) {
+		GraphInfo * next = g->next;
+		destroyIdSet(g->nodes);
+		destroyIdSet(g->groups);
+		free(g);
+		g = next;
+	}
+	a->graphs = NULL;
+}
+
+static void _addIdToSet(const char * id, void * context) {
+	idSetAdd((IdSet *) context, id);
+}
+
+static void _copyNodeIds(GraphInfo * dst, GraphInfo * src) {
+	idSetForEach(src->nodes, _addIdToSet, dst->nodes);
+}
+
+static void _copyGroupIds(GraphInfo * dst, GraphInfo * src) {
+	idSetForEach(src->groups, _addIdToSet, dst->groups);
+}
 
 static void _error(Analyzer * a, const char * format, const char * arg) {
 	logError(_logger, format, arg);
@@ -33,45 +89,62 @@ static void _error(Analyzer * a, const char * format, const char * arg) {
 }
 
 static void _checkGraphScope(Analyzer * a, GraphDecl * g) {
-	IdSet * nodes = createIdSet();
-	IdSet * groups = createIdSet();
+	GraphInfo * info = _registerGraph(a, g->id, g->kind, g->traits);
 	for (NodeDeclList * it = g->nodes; it != NULL; it = it->next) {
-		if (!idSetAdd(nodes, it->value->id)) {
+		if (!idSetAdd(info->nodes, it->value->id)) {
 			_error(a, "Duplicate node identifier: '%s'.", it->value->id);
 		}
 	}
 	for (GroupDeclList * it = g->groups; it != NULL; it = it->next) {
-		if (!idSetAdd(groups, it->value->name)) {
+		if (!idSetAdd(info->groups, it->value->name)) {
 			_error(a, "Duplicate group identifier: '%s'.", it->value->name);
 		}
 	}
 	for (EdgeDeclList * it = g->edges; it != NULL; it = it->next) {
 		EdgeDecl * e = it->value;
-		if (!idSetContains(nodes, e->from)) {
+		if (!idSetContains(info->nodes, e->from)) {
 			_error(a, "Edge references undeclared node: '%s'.", e->from);
 		}
-		if (!idSetContains(nodes, e->to)) {
+		if (!idSetContains(info->nodes, e->to)) {
 			_error(a, "Edge references undeclared node: '%s'.", e->to);
 		}
 	}
 	for (GroupDeclList * it = g->groups; it != NULL; it = it->next) {
 		for (IdList * m = it->value->members; m != NULL; m = m->next) {
-			if (!idSetContains(nodes, m->value)) {
+			if (!idSetContains(info->nodes, m->value)) {
 				_error(a, "Group references undeclared node: '%s'.", m->value);
 			}
 		}
 	}
-	destroyIdSet(nodes);
-	destroyIdSet(groups);
 }
 
 static void _checkAnalysisScope(Analyzer * a, AnalysisDecl * an) {
+	GraphInfo * target = _findGraph(a, an->onGraphId);
+	if (target == NULL) {
+		_error(a, "Analysis references undeclared graph: '%s'.", an->onGraphId);
+	}
 	IdSet * results = createIdSet();
 	for (AnalysisStmtList * it = an->statements; it != NULL; it = it->next) {
-		if (it->value->type == ANALYSIS_STMT_RUN) {
-			char * resultId = it->value->run->resultId;
-			if (!idSetAdd(results, resultId)) {
-				_error(a, "Duplicate result identifier: '%s'.", resultId);
+		AnalysisStmt * stmt = it->value;
+		if (stmt->type == ANALYSIS_STMT_RUN) {
+			RunStmt * run = stmt->run;
+			if (!idSetAdd(results, run->resultId)) {
+				_error(a, "Duplicate result identifier: '%s'.", run->resultId);
+			}
+			if (target != NULL) {
+				Algorithm * algo = run->algorithm;
+				if (algo->from != NULL && !idSetContains(target->nodes, algo->from)) {
+					_error(a, "Run references undeclared node: '%s'.", algo->from);
+				}
+				if (algo->to != NULL && !idSetContains(target->nodes, algo->to)) {
+					_error(a, "Run references undeclared node: '%s'.", algo->to);
+				}
+			}
+		}
+		else {
+			ExportStmt * ex = stmt->exportStmt;
+			if (ex->targetType == EXPORT_TARGET_RESULT && !idSetContains(results, ex->resultId)) {
+				_error(a, "Export references undeclared result: '%s'.", ex->resultId);
 			}
 		}
 	}
@@ -92,6 +165,22 @@ static void _checkTopLevel(Analyzer * a, TopLevelDecl * decl) {
 			DeriveDecl * d = decl->deriveDecl;
 			if (!idSetAdd(a->graphIds, d->newId)) {
 				_error(a, "Duplicate graph identifier: '%s'.", d->newId);
+			}
+			GraphInfo * src = _findGraph(a, d->fromId);
+			if (src == NULL) {
+				_error(a, "Derive references undeclared graph: '%s'.", d->fromId);
+			}
+			else {
+				GraphKind kind = (d->transformation->type == TRANSFORMATION_UNDERLYING)
+					? GRAPH_KIND_UNDIRECTED : src->kind;
+				GraphInfo * derived = _registerGraph(a, d->newId, kind, src->traits);
+				_copyNodeIds(derived, src);
+				_copyGroupIds(derived, src);
+				if (d->transformation->type == TRANSFORMATION_INDUCED_SUBGRAPH
+						&& !idSetContains(src->groups, d->transformation->group)) {
+					_error(a, "induced_subgraph references undeclared group: '%s'.",
+						d->transformation->group);
+				}
 			}
 			break;
 		}
@@ -118,11 +207,13 @@ SemanticResult executeSemanticAnalysis(CompilerState * compilerState) {
 	Analyzer a = {
 		.graphIds = createIdSet(),
 		.analysisIds = createIdSet(),
+		.graphs = NULL,
 		.errors = 0
 	};
 	for (TopLevelDeclList * it = program->decls; it != NULL; it = it->next) {
 		_checkTopLevel(&a, it->value);
 	}
+	_destroyGraphs(&a);
 	destroyIdSet(a.graphIds);
 	destroyIdSet(a.analysisIds);
 	if (a.errors == 0) {

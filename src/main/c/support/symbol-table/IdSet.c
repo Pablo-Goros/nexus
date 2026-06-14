@@ -65,3 +65,11 @@ bool idSetAdd(IdSet * set, const char * id) {
 	set->buckets[b] = e;
 	return true;
 }
+
+void idSetForEach(const IdSet * set, void (*visit)(const char * id, void * context), void * context) {
+	for (size_t i = 0; i < ID_SET_BUCKETS; ++i) {
+		for (const Entry * e = set->buckets[i]; e != NULL; e = e->next) {
+			visit(e->key, context);
+		}
+	}
+}

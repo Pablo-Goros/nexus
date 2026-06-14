@@ -16,4 +16,7 @@ bool idSetAdd(IdSet * set, const char * id);
 /** Returns true if "id" is present. */
 bool idSetContains(const IdSet * set, const char * id);
 
+/** Visits every id in the set. */
+void idSetForEach(const IdSet * set, void (*visit)(const char * id, void * context), void * context);
+
 #endif

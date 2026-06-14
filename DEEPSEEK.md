@@ -711,7 +711,7 @@ git commit -m "feat(semantic): resolve edge endpoints and group members"
 - Create: `src/test/c/reject-semantic/10-undeclared-run-endpoint`
 - Create: `src/test/c/reject-semantic/11-undeclared-export-result`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `src/test/c/reject-semantic/08-undeclared-derive-source`:
 
@@ -766,14 +766,14 @@ analysis M on G:
     export result nope to json
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 ```bash
 src/main/bash/build.sh && src/main/bash/test.sh
 ```
 Expected: tests 08–11 report `but it accepts (status 0)`.
 
-- [ ] **Step 3: Add the graph registry types**
+- [x] **Step 3: Add the graph registry types**
 
 In `SemanticAnalyzer.c`, above the `Analyzer` struct, add:
 
@@ -817,7 +817,7 @@ static GraphInfo * _registerGraph(Analyzer * a, char * id, GraphKind kind, Graph
 
 Add `#include <string.h>` at the top.
 
-- [ ] **Step 4: Populate the registry during graph/derive checks**
+- [x] **Step 4: Populate the registry during graph/derive checks**
 
 Change `_checkGraphScope` to build and return the registered `GraphInfo` so its node/group sets persist in the registry instead of being freed. Replace `_checkGraphScope`'s body so it registers the graph, fills `info->nodes` / `info->groups`, and uses them for the reference checks from Task 5:
 
@@ -865,7 +865,7 @@ In `executeSemanticAnalysis`, after the traversal loop, free the registry:
 	}
 ```
 
-- [ ] **Step 5: Add derive-source resolution and derived-graph synthesis**
+- [x] **Step 5: Add derive-source resolution and derived-graph synthesis**
 
 In `_checkTopLevel`'s `TOP_LEVEL_DERIVE` case, after the duplicate `idSetAdd`, resolve the source and register the derived graph:
 
@@ -961,7 +961,7 @@ Replace the loose loop fragment in the derive case (the `for (GraphInfo * s ...)
 		}
 ```
 
-- [ ] **Step 6: Add analysis cross-references (on-graph, run endpoints, export result)**
+- [x] **Step 6: Add analysis cross-references (on-graph, run endpoints, export result)**
 
 Replace `_checkAnalysisScope` so it resolves the target graph and validates run/export references:
 
@@ -1000,14 +1000,14 @@ static void _checkAnalysisScope(Analyzer * a, AnalysisDecl * an) {
 }
 ```
 
-- [ ] **Step 7: Verify GREEN**
+- [x] **Step 7: Verify GREEN**
 
 ```bash
 src/main/bash/build.sh && src/main/bash/test.sh
 ```
 Expected: tests 08–11 now report `and it does`; all accept exit 0; all rejects (lexical/syntactic + semantic) non-zero. Run under ASan; no leaks reported on exit.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add -A
