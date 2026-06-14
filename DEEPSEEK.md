@@ -315,7 +315,13 @@ Introduces the AST traversal skeleton and the first real rule. Also wires a dedi
 - Create: `src/test/c/reject-semantic/01-duplicate-graph`
 - Create: `src/test/c/reject-semantic/02-duplicate-analysis`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
+
+> **Fixture note (applies to every reject-semantic program):** the grammar makes both the
+> `nodes:` and `edges:` sections **mandatory** in a graph declaration. A graph that omits `edges:`
+> is rejected at *parse* time, which would mask the semantic rule under test (false RED). Every
+> graph in a fixture must therefore include an `edges:` section — use a real edge, or an empty
+> `edges:` when the test doesn't need one.
 
 `src/test/c/reject-semantic/01-duplicate-graph`:
 
@@ -324,10 +330,16 @@ graph G:
     kind directed
     nodes:
         a
+        b
+    edges:
+        a -> b
 graph G:
     kind directed
     nodes:
         a
+        b
+    edges:
+        a -> b
 ```
 
 `src/test/c/reject-semantic/02-duplicate-analysis`:
@@ -337,13 +349,16 @@ graph G:
     kind directed
     nodes:
         a
+        b
+    edges:
+        a -> b
 analysis M on G:
     export graph to dot
 analysis M on G:
     export graph to dot
 ```
 
-- [ ] **Step 2: Extend `test.sh` to check the new folder**
+- [x] **Step 2: Extend `test.sh` to check the new folder**
 
 In `src/main/bash/test.sh`, immediately after the existing `reject` loop's closing `done` and its `echo ""`, add:
 
@@ -364,7 +379,7 @@ done
 echo ""
 ```
 
-- [ ] **Step 3: Run to verify they currently fail (are wrongly accepted)**
+- [x] **Step 3: Run to verify they currently fail (are wrongly accepted)**
 
 ```bash
 src/main/bash/build.sh
@@ -372,7 +387,7 @@ src/main/bash/test.sh
 ```
 Expected: both `reject-semantic` programs report `but it accepts (status 0)` and the suite exits non-zero — the RED state (no duplicate rule yet).
 
-- [ ] **Step 4: Implement global-duplicate detection**
+- [x] **Step 4: Implement global-duplicate detection**
 
 Rewrite `src/main/c/backend/semantic-analysis/SemanticAnalyzer.c` so the walk records errors and registers global ids. Replace the file body (keep the module boilerplate) with:
 
@@ -474,7 +489,7 @@ Note: the final summary log uses the project's `logError(logger, format, ...)` s
 	}
 ```
 
-- [ ] **Step 5: Run to verify GREEN**
+- [x] **Step 5: Run to verify GREEN**
 
 ```bash
 src/main/bash/build.sh
@@ -482,7 +497,7 @@ src/main/bash/test.sh
 ```
 Expected: `01-duplicate-graph` and `02-duplicate-analysis` now report `and it does`; all 31 accept still exit 0; all 12 original reject still exit non-zero; suite exits 0.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A
@@ -511,6 +526,7 @@ graph G:
     nodes:
         a
         a
+    edges:
 ```
 
 `src/test/c/reject-semantic/04-duplicate-group`:
@@ -520,6 +536,7 @@ graph G:
     kind directed
     nodes:
         a
+    edges:
     groups:
         x = {a}
         x = {a}
@@ -630,6 +647,7 @@ graph G:
     kind directed
     nodes:
         a
+    edges:
     groups:
         x = {a, b}
 ```
@@ -702,6 +720,7 @@ graph G:
     kind directed
     nodes:
         a
+    edges:
 derive R from H using transpose
 ```
 
@@ -712,6 +731,7 @@ graph G:
     kind directed
     nodes:
         a
+    edges:
 analysis M on H:
     export graph to dot
 ```
@@ -1127,6 +1147,7 @@ graph G:
     kind undirected
     nodes:
         a
+    edges:
     constraints:
         assert strongly_connected
 ```
@@ -1138,6 +1159,7 @@ graph G:
     kind undirected
     nodes:
         a
+    edges:
 derive R from G using transpose
 ```
 
@@ -1148,6 +1170,7 @@ graph G:
     kind directed
     nodes:
         a
+    edges:
     constraints:
         assert forall n in missing: outdegree(n) = 0
 ```
@@ -1410,6 +1433,7 @@ graph G:
     kind directed
     nodes:
         a
+    edges:
 analysis M on G:
 ```
 
