@@ -38,6 +38,63 @@ static const char * _nodeAttr(NodeAttr attr) {
 	}
 }
 
+/* CONSTRAINTS */
+
+static const char * _degreeFnName(DegreeFn fn) {
+	switch (fn) {
+		case DEGREE_FN_INDEGREE: return "indegree";
+		case DEGREE_FN_OUTDEGREE: return "outdegree";
+		default: return "degree";
+	}
+}
+
+static const char * _comparatorLiteral(Comparator cmp) {
+	switch (cmp) {
+		case CMP_EQ: return "=";
+		case CMP_NEQ: return "!=";
+		case CMP_GEQ: return ">=";
+		case CMP_LEQ: return "<=";
+		case CMP_GT: return ">";
+		default: return "<";
+	}
+}
+
+static void _generateConstraints(const char * varName, GraphDecl * g) {
+	for (ConstraintList * it = g->constraints; it != NULL; it = it->next) {
+		Constraint * c = it->value;
+		switch (c->type) {
+			case CONSTRAINT_SIMPLE:
+				if (c->simple == SIMPLE_CONNECTED) {
+					printf("assert_connected(%s)\n", varName);
+				}
+				else if (c->simple == SIMPLE_STRONGLY_CONNECTED) {
+					printf("assert_strongly_connected(%s)\n", varName);
+				}
+				else {
+					printf("assert_acyclic(%s)\n", varName);
+				}
+				break;
+			case CONSTRAINT_REACHABLE:
+				printf("assert_reachable(%s, \"%s\", \"%s\")\n",
+					varName, c->reachable.from, c->reachable.to);
+				break;
+			case CONSTRAINT_TREE:
+				printf("assert_tree(%s, \"%s\")\n", varName, c->tree.root);
+				break;
+			case CONSTRAINT_BINARY_TREE:
+				printf("assert_binary_tree(%s, \"%s\")\n", varName, c->binaryTree.root);
+				break;
+			case CONSTRAINT_FORALL:
+				printf("assert_forall(%s, \"%s\", \"%s\", \"%s\", %d)\n",
+					varName, c->forall.group,
+					_degreeFnName(c->forall.predicate->fn),
+					_comparatorLiteral(c->forall.predicate->cmp),
+					c->forall.predicate->rhs);
+				break;
+		}
+	}
+}
+
 /* GRAPH CONSTRUCTION */
 
 static void _generateGraph(const char * varName, GraphDecl * g) {
@@ -71,6 +128,7 @@ static void _generateGraph(const char * varName, GraphDecl * g) {
 		}
 		printf("])\n");
 	}
+	_generateConstraints(varName, g);
 }
 
 /* DERIVATIONS */
