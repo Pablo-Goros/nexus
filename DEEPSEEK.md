@@ -2080,7 +2080,7 @@ Emit `R = transpose(G)` style derivations and, per analysis, `run`/`export` line
 - Modify: `src/main/c/backend/code-generation/Generator.c`
 - Modify: `src/main/bash/test-codegen.sh`
 
-- [ ] **Step 1: Strengthen the harness to assert artifacts exist**
+- [x] **Step 1: Strengthen the harness to assert artifacts exist**
 
 In `src/main/bash/test-codegen.sh`, replace the success branch of the loop body so it also checks that the integration program's exports were produced:
 
@@ -2093,14 +2093,14 @@ In `src/main/bash/test-codegen.sh`, replace the success branch of the loop body 
 	fi
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 ```bash
 src/main/bash/build.sh && src/main/bash/test-codegen.sh
 ```
 Expected: `runtime error or missing artifacts` — analyses/derivations are not emitted yet, so no `Main_graph.dot` / `Main_path.json`.
 
-- [ ] **Step 3: Emit derivations and analyses**
+- [x] **Step 3: Emit derivations and analyses**
 
 Add emit helpers and call them in `executeGenerator`. Add above `executeGenerator`:
 
@@ -2209,21 +2209,21 @@ Note on `write_dot` for a result export: results are dicts, so DOT export of a r
 
 Use this simpler `else` branch instead of the `write_%s` version above.
 
-- [ ] **Step 4: Verify GREEN**
+- [x] **Step 4: Verify GREEN**
 
 ```bash
 src/main/bash/build.sh && src/main/bash/test-codegen.sh
 ```
 Expected: `30-stage-i-integration, runs and exports` — `Main_graph.dot` and `Main_path.json` are produced.
 
-- [ ] **Step 5: Eyeball the generated program**
+- [x] **Step 5: Eyeball the generated program**
 
 ```bash
 cat src/test/c/accept/30-stage-i-integration | .build/Nexus 2>/dev/null
 ```
 Expected: a complete Python program — header imports, `G = Graph(directed=True, weighted=True, capacitated=True)` with nodes/edges/group, `R = transpose(G)`, then `path = shortest_path(G, "a", "c")`, `write_dot(G, "Main_graph.dot")`, `write_json(path, "Main_path.json")`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A
@@ -2240,7 +2240,7 @@ Constraints describe instance properties the compiler cannot verify statically (
 - Modify: `src/main/c/backend/code-generation/Generator.c`
 - Modify: `src/main/bash/test-codegen.sh`
 
-- [ ] **Step 1: Add a constraint program to the codegen harness**
+- [x] **Step 1: Add a constraint program to the codegen harness**
 
 In `test-codegen.sh`, change the loop list to cover a constraint-bearing program:
 
@@ -2264,14 +2264,14 @@ And relax the artifact assertion so it only applies to the integration program:
 ```
 (Replace the previous success/failure `if` block with this; remove the old artifact-only check. Also reset `cp "$RUNTIME" "$WORK/"` stays; and clear stale artifacts between iterations with `rm -f "$WORK"/Main_*.dot "$WORK"/Main_*.json` at the top of the loop.)
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 ```bash
 src/main/bash/build.sh && src/main/bash/test-codegen.sh
 ```
 Expected: `17-constraint-forall` runs but its `forall` constraint is not emitted, so nothing asserts it — it passes vacuously (still "runs cleanly"). To force a real RED, temporarily change `17-constraint-forall`'s predicate to `outdegree(n) = 5` (false for node `b`), rebuild, and confirm it still `runs cleanly` (proving constraints are NOT yet enforced). Revert the edit after observing RED.
 
-- [ ] **Step 3: Emit constraint assertions**
+- [x] **Step 3: Emit constraint assertions**
 
 Add a constraint emitter and call it from `_generateGraph`. Add above `_generateGraph`:
 
@@ -2334,7 +2334,7 @@ static void _generateConstraints(const char * varName, GraphDecl * g) {
 
 At the end of `_generateGraph` (after the groups loop), add `_generateConstraints(varName, g);`.
 
-- [ ] **Step 4: Verify GREEN**
+- [x] **Step 4: Verify GREEN**
 
 ```bash
 src/main/bash/build.sh && src/main/bash/test-codegen.sh
@@ -2348,7 +2348,7 @@ cp src/main/c/backend/code-generation/runtime/nexus_runtime.py /tmp/
 ```
 Expected with the false predicate: non-zero exit + `AssertionError: constraint failed: outdegree(b) = 5 is false`. With the original `= 0`: exit 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A
@@ -2365,7 +2365,7 @@ Generate and run Python for a representative spread of accept programs (each alg
 - Modify: `src/main/bash/test-codegen.sh`
 - Modify: `README.md`
 
-- [ ] **Step 1: Expand the codegen test list**
+- [x] **Step 1: Expand the codegen test list**
 
 In `test-codegen.sh`, set the loop to a spread that exercises every algorithm and transformation that produces a runnable program:
 
@@ -2378,14 +2378,14 @@ for test in \
 ```
 Keep the per-test artifact check only for `30-stage-i-integration` (as in Task 14). All others just need exit 0.
 
-- [ ] **Step 2: Run the full codegen sweep**
+- [x] **Step 2: Run the full codegen sweep**
 
 ```bash
 src/main/bash/build.sh && src/main/bash/test-codegen.sh
 ```
 Expected: every listed program reports `runs cleanly`. If any fails, inspect the emitted Python (`cat src/test/c/accept/<name> | .build/Nexus`) and fix the corresponding emit helper. Each algorithm's accept program must satisfy its semantic rule from Task 9 (adjust the accept program's traits/kind if a mismatch surfaces).
 
-- [ ] **Step 3: Document the backend verification in the README**
+- [x] **Step 3: Document the backend verification in the README**
 
 In `README.md`, under `## Commands`, add a `### Generate` subsection after `### Run`:
 
@@ -2410,14 +2410,14 @@ src/main/bash/test-codegen.sh
 
 Also update the README intro line: change "Stage II targets the compiler frontend only" to note Stage III adds semantic analysis and Python code generation.
 
-- [ ] **Step 4: Run both test suites**
+- [x] **Step 4: Run both test suites**
 
 ```bash
 src/main/bash/test.sh && src/main/bash/test-codegen.sh
 ```
 Expected: accept (31) exit 0; reject lexical/syntactic (12) + reject-semantic (24) exit non-zero; every codegen program runs cleanly. Both scripts exit 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A
