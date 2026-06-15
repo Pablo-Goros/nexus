@@ -1,0 +1,12 @@
+graph G:
+    kind directed
+    traits weighted
+    nodes:
+        a
+        b
+    edges:
+        a -> b weight 1
+
+analysis Main on G:
+    run shortest_path from a to b as path
+    export result path to dot

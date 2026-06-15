@@ -25,7 +25,7 @@ for test in \
     22-analysis-shortest-path 23-analysis-topological-sort 24-analysis-components \
     25-analysis-scc 26-analysis-mst 27-analysis-max-flow \
     28-export-graph 29-export-result 30-stage-i-integration \
-    32-example-build 33-example-tree 34-example-flow; do
+    32-example-build 33-example-tree 34-example-flow 35-export-result-dot; do
     cat "src/test/c/accept/$test" | LOGGING_LEVEL=CRITICAL ".build/Nexus" 2>/dev/null > "$WORK/program.py"
     if [ ! -s "$WORK/program.py" ]; then
         STATUS=1
@@ -47,6 +47,9 @@ for test in \
     fi
     if [ "$test" == "34-example-flow" ]; then
         { [ -f "$WORK/MaxFlowCheck_graph.dot" ] && [ -f "$WORK/MaxFlowCheck_flow_st.json" ]; } || ok=0
+    fi
+    if [ "$test" == "35-export-result-dot" ]; then
+        { [ -f "$WORK/Main_path.dot" ]; } || ok=0
     fi
     rm -f "$WORK"/*.dot "$WORK"/*.json
     if [ "$ok" == "1" ]; then

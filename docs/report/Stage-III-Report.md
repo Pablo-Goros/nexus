@@ -102,7 +102,7 @@ analysis Main on Build:
 
 El frontend fue implementado en Stage II y no sufrió modificaciones en Stage III.
 
-**Análisis léxico (Flex):** El lexer (`FlexPatterns.l`) reconoce los tokens del lenguaje: palabras reservadas (`graph`, `kind`, `directed`, `undirected`, `traits`, `weighted`, `capacitated`, `nodes`, `edges`, `groups`, `constraints`, `assert`, `connected`, `strongly_connected`, `acyclic`, `reachable`, `tree`, `binary_tree`, `rooted_at`, `forall`, `in`, `derive`, `from`, `using`, `transpose`, `induced_subgraph`, `remove_self_loops`, `underlying`, `analysis`, `on`, `run`, `as`, `export`, `result`, `to`, `dot`, `json`, `root`, `source`, `sink`, `terminal`, `degree`, `indegree`, `outdegree`, `shortest_path`, `topological_sort`, `components`, `scc`, `mst`, `max_flow`, `weight`, `capacity`), operadores (`->`, `--`, `=`, `!=`, `>=`, `<=`, `<`, `>`), delimitadores (`:`, `{`, `}`, `,`, `(`, `)`), identificadores (`[a-zA-Z_][a-zA-Z0-9_]*`), enteros, y comentarios de línea (`#`).
+**Análisis léxico (Flex):** El lexer (`FlexPatterns.l`) reconoce los tokens del lenguaje: palabras reservadas (`graph`, `kind`, `directed`, `undirected`, `traits`, `weighted`, `capacitated`, `nodes`, `edges`, `groups`, `constraints`, `assert`, `connected`, `strongly_connected`, `acyclic`, `reachable`, `tree`, `binary_tree`, `rooted_at`, `forall`, `in`, `derive`, `from`, `using`, `transpose`, `induced_subgraph`, `remove_self_loops`, `underlying`, `analysis`, `on`, `run`, `as`, `export`, `result`, `to`, `dot`, `json`, `root`, `source`, `sink`, `terminal`, `degree`, `indegree`, `outdegree`, `shortest_path`, `topological_sort`, `components`, `scc`, `mst`, `max_flow`, `weight`, `capacity`), operadores (`->`, `--`, `=`, `!=`, `>=`, `<=`, `<`, `>`), delimitadores (`:`, `{`, `}`, `,`, `(`, `)`), identificadores (`[a-zA-Z_][a-zA-Z0-9_]*`), enteros, y comentarios de línea (`//`).
 
 **Análisis sintáctico (Bison):** La gramática (`BisonGrammar.y`) define las producciones del lenguaje y las acciones semánticas que construyen el AST. La gramática es LALR(1), libre de conflictos.
 
@@ -143,6 +143,7 @@ En Nexus no existe un sistema de tipos tradicional con coerción o inferencia. E
 | Identificador de nodo duplicado | `_checkGraphScope` |
 | Identificador de grupo duplicado | `_checkGraphScope` |
 | Identificador de resultado duplicado | `_checkAnalysisScope` |
+| Arista paralela duplicada | `_checkGraphScope` |
 
 **Validaciones de referencias:**
 
@@ -174,6 +175,8 @@ En Nexus no existe un sistema de tipos tradicional con coerción o inferencia. E
 | `strongly_connected` en grafo `undirected` | `_checkConstraints` |
 | `tree` en grafo `undirected` | `_checkConstraints` |
 | `binary_tree` en grafo `undirected` | `_checkConstraints` |
+| `tree rooted_at` o `binary_tree rooted_at` distinto del nodo `root` declarado | `_checkConstraints` |
+| `assert acyclic` sobre grafos con ciclos o self-loops | `_checkConstraints` |
 
 **Validaciones de atributos de nodo:**
 
@@ -184,6 +187,10 @@ En Nexus no existe un sistema de tipos tradicional con coerción o inferencia. E
 | Múltiples nodos `root` | `_checkGraphScope` |
 | Múltiples nodos `source` | `_checkGraphScope` |
 | Múltiples nodos `sink` | `_checkGraphScope` |
+| `root` con indegree distinto de cero en grafo dirigido | `_checkGraphScope` |
+| `source` con indegree distinto de cero u outdegree nulo | `_checkGraphScope` |
+| `sink` con outdegree distinto de cero o indegree nulo | `_checkGraphScope` |
+| `terminal` con salidas en grafo dirigido o grado distinto de uno en grafo no dirigido | `_checkGraphScope` |
 
 **Validaciones de transformación vs. kind:**
 
@@ -198,12 +205,14 @@ En Nexus no existe un sistema de tipos tradicional con coerción o inferencia. E
 | Validación | Ubicación |
 |:---|:---|
 | `topological_sort` en grafo `undirected` | `_checkAlgorithm` |
+| `topological_sort` en grafo cíclico | `_checkAlgorithm` |
 | `scc` en grafo `undirected` | `_checkAlgorithm` |
 | `components` en grafo `directed` | `_checkAlgorithm` |
 | `mst` en grafo `directed` | `_checkAlgorithm` |
 | `mst` en grafo sin `weighted` | `_checkAlgorithm` |
 | `max_flow` en grafo `undirected` | `_checkAlgorithm` |
 | `max_flow` sin `capacitated` | `_checkAlgorithm` |
+| `max_flow` con endpoints distintos de `source`/`sink` declarados | `_checkAlgorithm` |
 | `shortest_path` sin `weighted` | `_checkAlgorithm` |
 
 **Validaciones estructurales:**
@@ -213,11 +222,11 @@ En Nexus no existe un sistema de tipos tradicional con coerción o inferencia. E
 | Grafo sin nodos | `_checkGraphScope` |
 | Análisis sin statements | `_checkAnalysisScope` |
 
-En total se implementaron **31 validaciones semánticas**, cada una con su test de rechazo correspondiente.
+En total se implementaron **47 validaciones semánticas** con tests de rechazo dedicados para identificadores, referencias, compatibilidad de traits/kinds, atributos estructurales de nodos, aristas paralelas, constraints y algoritmos.
 
 #### 3.2.3 Generación de Código
 
-El generador (`Generator.c`, 246 líneas) realiza un tree-walk syntax-directed sobre el AST, emitiendo Python a stdout mediante `printf`/`fputs`. No requiere indentación ni manejo de scopes en la salida porque Python no necesita bloques para las operaciones generadas (todo es secuencial a nivel de módulo).
+El generador (`Generator.c`, 252 líneas) realiza un tree-walk syntax-directed sobre el AST, emitiendo Python a stdout mediante `printf`/`fputs`. No requiere indentación ni manejo de scopes en la salida porque Python no necesita bloques para las operaciones generadas (todo es secuencial a nivel de módulo).
 
 La función principal `executeGenerator` recorre la lista de `TopLevelDecl` y despacha a:
 
@@ -240,7 +249,7 @@ from nexus_runtime import write_dot, write_json
 
 #### 3.2.4 Runtime
 
-El runtime (`nexus_runtime.py`, 404 líneas) es una biblioteca Python stdlib-only que se distribuye como asset junto al compilador. No se enlaza al compilador; es una dependencia del programa generado.
+El runtime (`nexus_runtime.py`, 430 líneas) es una biblioteca Python stdlib-only que se distribuye como asset junto al compilador. No se enlaza al compilador; es una dependencia del programa generado.
 
 **Componentes del runtime:**
 
@@ -250,7 +259,7 @@ El runtime (`nexus_runtime.py`, 404 líneas) es una biblioteca Python stdlib-onl
 | Derivaciones | `transpose`, `induced_subgraph`, `remove_self_loops`, `underlying` — retornan un nuevo `Graph`. |
 | Algoritmos | `shortest_path` (Dijkstra), `topological_sort` (Kahn), `components` (BFS), `scc` (Tarjan), `mst` (Kruskal con Union-Find), `max_flow` (Edmonds-Karp). |
 | Assertions | `assert_connected`, `assert_strongly_connected`, `assert_acyclic`, `assert_reachable`, `assert_tree`, `assert_binary_tree`, `assert_forall` — lanzan `AssertionError` si la condición no se cumple. |
-| Exportadores | `write_dot` (genera archivo `.dot` para Graphviz), `write_json` (serializa a JSON). |
+| Exportadores | `write_dot` (genera `.dot` para grafos), `write_result_dot` (genera `.dot` para resultados), `write_json` (serializa a JSON). |
 
 **Compile-time vs. runtime assertions:** Las restricciones del lenguaje se validan en dos momentos:
 - **Compile-time:** El analizador semántico verifica que las restricciones sean válidas para el tipo de grafo (e.g., `tree` solo en directed). Esto previene errores de tipo.
@@ -292,13 +301,13 @@ El runtime (`nexus_runtime.py`, 404 líneas) es una biblioteca Python stdlib-onl
 
 ## 5. Conclusiones
 
-El compilador Nexus implementa exitosamente las tres etapas del proyecto: un frontend libre de conflictos que construye un AST completo, un analizador semántico con 31 validaciones que cubren identificadores, referencias, traits, operadores, constraints, transformaciones y algoritmos, y un generador de código que produce programas Python ejecutables.
+El compilador Nexus implementa exitosamente las tres etapas del proyecto: un frontend libre de conflictos que construye un AST completo, un analizador semántico con 47 validaciones que cubren identificadores, referencias, traits, operadores, constraints, transformaciones, algoritmos y reglas estructurales de grafos, y un generador de código que produce programas Python ejecutables.
 
 La decisión de generar Python con un runtime stdlib-only resultó acertada: permite ejecutar los programas generados sin dependencias externas (salvo Python 3 y opcionalmente Graphviz para visualizar los DOT), y facilitó el testing end-to-end de la generación de código.
 
 El enfoque TDD (write test, verify RED, implement, verify GREEN) fue especialmente efectivo para las validaciones semánticas, donde cada validación tiene un test de rechazo dedicado que documenta exactamente qué programa inválido se detecta.
 
-La suite de tests final incluye 34 tests de aceptación, 12 tests de rechazo sintáctico, 31 tests de rechazo semántico, y 23 tests de generación de código end-to-end que verifican que los programas generados se ejecutan correctamente y producen los artefactos esperados.
+La suite de tests final incluye 35 tests de aceptación, 12 tests de rechazo sintáctico, 47 tests de rechazo semántico, y 24 tests de generación de código end-to-end que verifican que los programas generados se ejecutan correctamente y producen los artefactos esperados.
 
 ---
 

@@ -63,6 +63,10 @@ def induced_subgraph(g, group_name):
                 sub.adj.setdefault(u, []).append(
                     {"to": e["to"], "weight": e["weight"], "capacity": e["capacity"]}
                 )
+    for name, group_members in g.groups.items():
+        kept = [node for node in group_members if node in members]
+        if kept:
+            sub.add_group(name, kept)
     return sub
 
 
@@ -395,6 +399,28 @@ def write_dot(g, filename):
                     labels.append(f'c={e["capacity"]}')
                 label = f' [label="{", ".join(labels)}"]' if labels else ""
                 f.write(f"  {u}{arrow}{e['to']}{label};\n")
+        f.write("}\n")
+
+
+def write_result_dot(value, filename):
+    with open(filename, "w") as f:
+        f.write("digraph Result {\n")
+        if isinstance(value, dict) and "path" in value:
+            path = value.get("path", [])
+            for node in path:
+                f.write(f'  "{node}";\n')
+            for i in range(len(path) - 1):
+                f.write(f'  "{path[i]}" -> "{path[i + 1]}";\n')
+        elif isinstance(value, dict) and "edges" in value:
+            for edge in value.get("edges", []):
+                u = edge.get("from")
+                v = edge.get("to")
+                label = edge.get("weight")
+                suffix = f' [label="{label}"]' if label is not None else ""
+                f.write(f'  "{u}" -> "{v}"{suffix};\n')
+        else:
+            label = json.dumps(value, default=str).replace('"', '\\"')
+            f.write(f'  result [shape=box, label="{label}"];\n')
         f.write("}\n")
 
 

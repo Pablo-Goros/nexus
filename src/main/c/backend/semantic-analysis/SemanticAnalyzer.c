@@ -29,8 +29,33 @@ typedef struct GraphInfo {
 	GraphTraits traits;
 	IdSet * nodes;         /* owned */
 	IdSet * groups;        /* owned */
+	struct NodeInfo * nodeInfos;
+	struct EdgeInfo * edgeInfos;
+	char * root;
+	char * source;
+	char * sink;
+	bool cycleKnown;
+	bool hasCycle;
 	struct GraphInfo * next;
 } GraphInfo;
+
+typedef struct NodeInfo {
+	char * id;             /* not owned: points into the AST */
+	NodeAttr attr;
+	int indegree;
+	int outdegree;
+	int degree;
+	int mark;
+	struct NodeInfo * ufParent;
+	int ufRank;
+	struct NodeInfo * next;
+} NodeInfo;
+
+typedef struct EdgeInfo {
+	char * from;           /* not owned: points into the AST */
+	char * to;             /* not owned: points into the AST */
+	struct EdgeInfo * next;
+} EdgeInfo;
 
 typedef struct {
 	IdSet * graphIds;      /* global: declared + derived graph ids */
@@ -60,9 +85,59 @@ static GraphInfo * _registerGraph(Analyzer * a, char * id, GraphKind kind, Graph
 	return info;
 }
 
+static NodeInfo * _findNodeInfo(GraphInfo * g, const char * id) {
+	for (NodeInfo * n = g->nodeInfos; n != NULL; n = n->next) {
+		if (strcmp(n->id, id) == 0) {
+			return n;
+		}
+	}
+	return NULL;
+}
+
+static NodeInfo * _addNodeInfo(GraphInfo * g, char * id, NodeAttr attr) {
+	NodeInfo * n = calloc(1, sizeof(NodeInfo));
+	n->id = id;
+	n->attr = attr;
+	n->next = g->nodeInfos;
+	g->nodeInfos = n;
+	return n;
+}
+
+static bool _sameEdge(GraphKind kind, EdgeInfo * e, const char * from, const char * to) {
+	if (strcmp(e->from, from) == 0 && strcmp(e->to, to) == 0) {
+		return true;
+	}
+	return kind == GRAPH_KIND_UNDIRECTED
+		&& strcmp(e->from, to) == 0 && strcmp(e->to, from) == 0;
+}
+
+static bool _addEdgeInfo(GraphInfo * g, const char * from, const char * to) {
+	for (EdgeInfo * e = g->edgeInfos; e != NULL; e = e->next) {
+		if (_sameEdge(g->kind, e, from, to)) {
+			return false;
+		}
+	}
+	EdgeInfo * e = calloc(1, sizeof(EdgeInfo));
+	e->from = (char *) from;
+	e->to = (char *) to;
+	e->next = g->edgeInfos;
+	g->edgeInfos = e;
+	return true;
+}
+
 static void _destroyGraphs(Analyzer * a) {
 	for (GraphInfo * g = a->graphs; g != NULL; ) {
 		GraphInfo * next = g->next;
+		for (NodeInfo * n = g->nodeInfos; n != NULL; ) {
+			NodeInfo * nNext = n->next;
+			free(n);
+			n = nNext;
+		}
+		for (EdgeInfo * e = g->edgeInfos; e != NULL; ) {
+			EdgeInfo * eNext = e->next;
+			free(e);
+			e = eNext;
+		}
 		destroyIdSet(g->nodes);
 		destroyIdSet(g->groups);
 		free(g);
@@ -83,15 +158,108 @@ static void _copyGroupIds(GraphInfo * dst, GraphInfo * src) {
 	idSetForEach(src->groups, _addIdToSet, dst->groups);
 }
 
+static void _copyNodeInfoIds(GraphInfo * dst, GraphInfo * src) {
+	for (NodeInfo * n = src->nodeInfos; n != NULL; n = n->next) {
+		_addNodeInfo(dst, n->id, n->attr);
+	}
+}
+
 static void _error(Analyzer * a, const char * format, const char * arg) {
 	logError(_logger, format, arg);
 	a->errors++;
 }
 
+static bool _hasAcyclicConstraint(GraphDecl * g) {
+	for (ConstraintList * it = g->constraints; it != NULL; it = it->next) {
+		Constraint * c = it->value;
+		if (c->type == CONSTRAINT_SIMPLE && c->simple == SIMPLE_ACYCLIC) {
+			return true;
+		}
+	}
+	return false;
+}
+
+static bool _visitDirectedCycle(GraphDecl * g, GraphInfo * info, NodeInfo * node) {
+	node->mark = 1;
+	for (EdgeDeclList * it = g->edges; it != NULL; it = it->next) {
+		EdgeDecl * e = it->value;
+		if (strcmp(e->from, node->id) != 0) {
+			continue;
+		}
+		NodeInfo * to = _findNodeInfo(info, e->to);
+		if (to == NULL) {
+			continue;
+		}
+		if (to->mark == 1) {
+			return true;
+		}
+		if (to->mark == 0 && _visitDirectedCycle(g, info, to)) {
+			return true;
+		}
+	}
+	node->mark = 2;
+	return false;
+}
+
+static NodeInfo * _ufFind(NodeInfo * n) {
+	if (n->ufParent != n) {
+		n->ufParent = _ufFind(n->ufParent);
+	}
+	return n->ufParent;
+}
+
+static bool _ufUnion(NodeInfo * a, NodeInfo * b) {
+	NodeInfo * rootA = _ufFind(a);
+	NodeInfo * rootB = _ufFind(b);
+	if (rootA == rootB) {
+		return false;
+	}
+	if (rootA->ufRank < rootB->ufRank) {
+		NodeInfo * tmp = rootA;
+		rootA = rootB;
+		rootB = tmp;
+	}
+	rootB->ufParent = rootA;
+	if (rootA->ufRank == rootB->ufRank) {
+		rootA->ufRank++;
+	}
+	return true;
+}
+
+static bool _graphHasCycle(GraphDecl * g, GraphInfo * info) {
+	if (g->kind == GRAPH_KIND_DIRECTED) {
+		for (NodeInfo * n = info->nodeInfos; n != NULL; n = n->next) {
+			n->mark = 0;
+		}
+		for (NodeInfo * n = info->nodeInfos; n != NULL; n = n->next) {
+			if (n->mark == 0 && _visitDirectedCycle(g, info, n)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	for (NodeInfo * n = info->nodeInfos; n != NULL; n = n->next) {
+		n->ufParent = n;
+		n->ufRank = 0;
+	}
+	for (EdgeDeclList * it = g->edges; it != NULL; it = it->next) {
+		EdgeDecl * e = it->value;
+		NodeInfo * from = _findNodeInfo(info, e->from);
+		NodeInfo * to = _findNodeInfo(info, e->to);
+		if (from == NULL || to == NULL) {
+			continue;
+		}
+		if (!_ufUnion(from, to)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 static void _checkConstraints(Analyzer * a, GraphDecl * g, GraphInfo * info) {
 	for (ConstraintList * it = g->constraints; it != NULL; it = it->next) {
 		Constraint * c = it->value;
-		switch (c->type) {
+			switch (c->type) {
 			case CONSTRAINT_SIMPLE:
 				if (c->simple == SIMPLE_STRONGLY_CONNECTED
 						&& g->kind != GRAPH_KIND_DIRECTED) {
@@ -100,6 +268,9 @@ static void _checkConstraints(Analyzer * a, GraphDecl * g, GraphInfo * info) {
 				if (c->simple == SIMPLE_CONNECTED
 						&& g->kind != GRAPH_KIND_UNDIRECTED) {
 					_error(a, "'connected' requires an undirected graph: '%s'.", g->id);
+				}
+				if (c->simple == SIMPLE_ACYCLIC && info->cycleKnown && info->hasCycle) {
+					_error(a, "'acyclic' constraint is violated by graph: '%s'.", g->id);
 				}
 				break;
 			case CONSTRAINT_REACHABLE:
@@ -117,6 +288,10 @@ static void _checkConstraints(Analyzer * a, GraphDecl * g, GraphInfo * info) {
 				if (!idSetContains(info->nodes, c->tree.root)) {
 					_error(a, "tree 'rooted_at' references undeclared node: '%s'.", c->tree.root);
 				}
+				if (info->root != NULL && strcmp(info->root, c->tree.root) != 0) {
+					_error(a, "tree 'rooted_at' must reference the declared root node: '%s'.",
+						info->root);
+				}
 				break;
 			case CONSTRAINT_BINARY_TREE:
 				if (g->kind != GRAPH_KIND_DIRECTED) {
@@ -125,6 +300,10 @@ static void _checkConstraints(Analyzer * a, GraphDecl * g, GraphInfo * info) {
 				if (!idSetContains(info->nodes, c->binaryTree.root)) {
 					_error(a, "binary_tree 'rooted_at' references undeclared node: '%s'.",
 						c->binaryTree.root);
+				}
+				if (info->root != NULL && strcmp(info->root, c->binaryTree.root) != 0) {
+					_error(a, "binary_tree 'rooted_at' must reference the declared root node: '%s'.",
+						info->root);
 				}
 				break;
 			case CONSTRAINT_FORALL:
@@ -145,21 +324,28 @@ static void _checkGraphScope(Analyzer * a, GraphDecl * g) {
 	if (g->nodes == NULL) {
 		_error(a, "Graph '%s' declares no nodes.", g->id);
 	}
+	bool hasAcyclicConstraint = _hasAcyclicConstraint(g);
 	int rootCount = 0, sourceCount = 0, sinkCount = 0;
 	for (NodeDeclList * it = g->nodes; it != NULL; it = it->next) {
 		if (!idSetAdd(info->nodes, it->value->id)) {
 			_error(a, "Duplicate node identifier: '%s'.", it->value->id);
 		}
+		NodeInfo * node = _addNodeInfo(info, it->value->id, it->value->attr);
 		switch (it->value->attr) {
-			case NODE_ATTR_ROOT: rootCount++; break;
+			case NODE_ATTR_ROOT:
+				rootCount++;
+				info->root = node->id;
+				break;
 			case NODE_ATTR_SOURCE:
 				sourceCount++;
+				info->source = node->id;
 				if (g->kind != GRAPH_KIND_DIRECTED) {
 					_error(a, "Node attribute 'source' requires a directed graph: '%s'.", g->id);
 				}
 				break;
 			case NODE_ATTR_SINK:
 				sinkCount++;
+				info->sink = node->id;
 				if (g->kind != GRAPH_KIND_DIRECTED) {
 					_error(a, "Node attribute 'sink' requires a directed graph: '%s'.", g->id);
 				}
@@ -183,11 +369,34 @@ static void _checkGraphScope(Analyzer * a, GraphDecl * g) {
 	}
 	for (EdgeDeclList * it = g->edges; it != NULL; it = it->next) {
 		EdgeDecl * e = it->value;
-		if (!idSetContains(info->nodes, e->from)) {
+		NodeInfo * from = _findNodeInfo(info, e->from);
+		NodeInfo * to = _findNodeInfo(info, e->to);
+		if (from == NULL) {
 			_error(a, "Edge references undeclared node: '%s'.", e->from);
 		}
-		if (!idSetContains(info->nodes, e->to)) {
+		if (to == NULL) {
 			_error(a, "Edge references undeclared node: '%s'.", e->to);
+		}
+		if (from != NULL && to != NULL) {
+			if (!_addEdgeInfo(info, e->from, e->to)) {
+				_error(a, "Parallel edge is not allowed in graph: '%s'.", g->id);
+			}
+			from->outdegree++;
+			to->indegree++;
+			if (g->kind == GRAPH_KIND_UNDIRECTED && from != to) {
+				from->degree++;
+				to->degree++;
+			}
+			else if (g->kind == GRAPH_KIND_UNDIRECTED) {
+				from->degree += 2;
+			}
+			else {
+				from->degree++;
+				to->degree++;
+			}
+			if (hasAcyclicConstraint && strcmp(e->from, e->to) == 0) {
+				_error(a, "Self-loop violates 'acyclic' constraint in graph: '%s'.", g->id);
+			}
 		}
 		if (e->hasWeight && !g->traits.weighted) {
 			_error(a, "Edge uses 'weight' but graph '%s' is not weighted.", g->id);
@@ -200,6 +409,42 @@ static void _checkGraphScope(Analyzer * a, GraphDecl * g) {
 		}
 		if (e->op == EDGE_OP_UNDIRECTED && g->kind != GRAPH_KIND_UNDIRECTED) {
 			_error(a, "Undirected edge '--' in directed graph '%s'.", g->id);
+		}
+	}
+	info->cycleKnown = true;
+	info->hasCycle = _graphHasCycle(g, info);
+	for (NodeInfo * n = info->nodeInfos; n != NULL; n = n->next) {
+		switch (n->attr) {
+			case NODE_ATTR_ROOT:
+				if (g->kind == GRAPH_KIND_DIRECTED && n->indegree != 0) {
+					_error(a, "Node attribute 'root' requires indegree 0: '%s'.", n->id);
+				}
+				break;
+			case NODE_ATTR_SOURCE:
+				if (n->indegree != 0) {
+					_error(a, "Node attribute 'source' requires indegree 0: '%s'.", n->id);
+				}
+				if (n->outdegree <= 0) {
+					_error(a, "Node attribute 'source' requires outdegree > 0: '%s'.", n->id);
+				}
+				break;
+			case NODE_ATTR_SINK:
+				if (n->outdegree != 0) {
+					_error(a, "Node attribute 'sink' requires outdegree 0: '%s'.", n->id);
+				}
+				if (n->indegree <= 0) {
+					_error(a, "Node attribute 'sink' requires indegree > 0: '%s'.", n->id);
+				}
+				break;
+			case NODE_ATTR_TERMINAL:
+				if (g->kind == GRAPH_KIND_DIRECTED && n->outdegree != 0) {
+					_error(a, "Node attribute 'terminal' requires outdegree 0: '%s'.", n->id);
+				}
+				if (g->kind == GRAPH_KIND_UNDIRECTED && n->degree != 1) {
+					_error(a, "Node attribute 'terminal' requires degree 1: '%s'.", n->id);
+				}
+				break;
+			default: break;
 		}
 	}
 	for (GroupDeclList * it = g->groups; it != NULL; it = it->next) {
@@ -218,6 +463,9 @@ static void _checkAlgorithm(Analyzer * a, GraphInfo * target, Algorithm * algo) 
 		case ALGO_TOPOLOGICAL_SORT:
 			if (!directed) {
 				_error(a, "'topological_sort' requires a directed graph: '%s'.", target->id);
+			}
+			if (target->cycleKnown && target->hasCycle) {
+				_error(a, "'topological_sort' requires an acyclic graph: '%s'.", target->id);
 			}
 			break;
 		case ALGO_SCC:
@@ -244,6 +492,14 @@ static void _checkAlgorithm(Analyzer * a, GraphInfo * target, Algorithm * algo) 
 			}
 			if (!target->traits.capacitated) {
 				_error(a, "'max_flow' requires a capacitated graph: '%s'.", target->id);
+			}
+			if (target->source != NULL && algo->from != NULL && strcmp(target->source, algo->from) != 0) {
+				_error(a, "'max_flow' source must match the declared source node: '%s'.",
+					target->source);
+			}
+			if (target->sink != NULL && algo->to != NULL && strcmp(target->sink, algo->to) != 0) {
+				_error(a, "'max_flow' target must match the declared sink node: '%s'.",
+					target->sink);
 			}
 			break;
 		case ALGO_SHORTEST_PATH:
@@ -316,6 +572,14 @@ static void _checkTopLevel(Analyzer * a, TopLevelDecl * decl) {
 				GraphInfo * derived = _registerGraph(a, d->newId, kind, src->traits);
 				_copyNodeIds(derived, src);
 				_copyGroupIds(derived, src);
+				_copyNodeInfoIds(derived, src);
+				derived->root = src->root;
+				derived->source = src->source;
+				derived->sink = src->sink;
+				if (d->transformation->type == TRANSFORMATION_TRANSPOSE) {
+					derived->cycleKnown = src->cycleKnown;
+					derived->hasCycle = src->hasCycle;
+				}
 				if (d->transformation->type == TRANSFORMATION_TRANSPOSE
 						&& src->kind != GRAPH_KIND_DIRECTED) {
 					_error(a, "'transpose' requires a directed source graph: '%s'.", d->fromId);

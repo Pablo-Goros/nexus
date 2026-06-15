@@ -1,0 +1,8 @@
+graph G:
+    kind directed
+    nodes:
+        s source
+        a
+    edges:
+        a -> s
+        s -> a

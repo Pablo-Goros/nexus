@@ -1,0 +1,12 @@
+graph G:
+    kind directed
+    traits capacitated
+    nodes:
+        s source
+        a
+        t sink
+    edges:
+        s -> a capacity 1
+        a -> t capacity 1
+analysis F on G:
+    run max_flow from a to t as flow

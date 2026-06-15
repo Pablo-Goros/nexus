@@ -201,8 +201,14 @@ static void _generateAnalysis(AnalysisDecl * an) {
 				}
 			}
 			else {
-				printf("write_json(%s, \"%s_%s.%s\")\n",
-					ex->resultId, an->id, ex->resultId, fmt);
+				if (ex->format == EXPORT_FORMAT_DOT) {
+					printf("write_result_dot(%s, \"%s_%s.dot\")\n",
+						ex->resultId, an->id, ex->resultId);
+				}
+				else {
+					printf("write_json(%s, \"%s_%s.%s\")\n",
+						ex->resultId, an->id, ex->resultId, fmt);
+				}
 			}
 		}
 	}
@@ -217,7 +223,7 @@ static void _generateHeader(void) {
 	_out("from nexus_runtime import shortest_path, topological_sort, components, scc, mst, max_flow\n");
 	_out("from nexus_runtime import assert_connected, assert_strongly_connected, assert_acyclic\n");
 	_out("from nexus_runtime import assert_reachable, assert_tree, assert_binary_tree, assert_forall\n");
-	_out("from nexus_runtime import write_dot, write_json\n\n");
+	_out("from nexus_runtime import write_dot, write_result_dot, write_json\n\n");
 }
 
 /** PUBLIC FUNCTIONS */
