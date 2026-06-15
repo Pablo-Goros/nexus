@@ -17,7 +17,12 @@ cp "$RUNTIME" "$WORK/"
 echo "Code generation should produce runnable Python..."
 echo ""
 
-for test in 17-constraint-forall 30-stage-i-integration; do
+for test in \
+    17-constraint-forall \
+    18-derive-transpose 19-derive-induced 20-derive-remove-self-loops 21-derive-underlying \
+    22-analysis-shortest-path 23-analysis-topological-sort 24-analysis-components \
+    25-analysis-scc 26-analysis-mst 27-analysis-max-flow \
+    28-export-graph 29-export-result 30-stage-i-integration; do
     cat "src/test/c/accept/$test" | LOGGING_LEVEL=CRITICAL ".build/Nexus" 2>/dev/null > "$WORK/program.py"
     if [ ! -s "$WORK/program.py" ]; then
         STATUS=1

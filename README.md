@@ -2,7 +2,7 @@
 
 Nexus is a graph-oriented DSL compiler project for Automatas, Teoria de Lenguajes y Compiladores.
 
-Stage II targets the compiler frontend only: lexical analysis, syntactic analysis, and AST construction. The project is built from the required `Flex-Bison-Compiler` `v2.0.0` base and keeps its Docker, CMake, and shell-script workflow.
+The compiler covers all three stages: lexical analysis, syntactic analysis, AST construction (Stage II), semantic analysis, and Python code generation (Stage III). The project is built from the required `Flex-Bison-Compiler` `v2.0.0` base and keeps its Docker, CMake, and shell-script workflow.
 
 * [Requirements](#requirements)
 * [Configuration](#configuration)
@@ -60,6 +60,23 @@ Executes every available unit-test under `src/test/c` folder:
 
 ```bash
 src/main/bash/test.sh
+```
+
+### Generate
+
+The compiler emits a Python program to standard output. Pair it with the bundled
+runtime library to produce the `.dot` / `.json` artifacts:
+
+```bash
+src/main/bash/run.sh <program> > program.py
+cp src/main/c/backend/code-generation/runtime/nexus_runtime.py .
+python3 program.py    # writes <Analysis>_graph.dot, <Analysis>_<result>.json
+```
+
+### Test (code generation)
+
+```bash
+src/main/bash/test-codegen.sh
 ```
 
 ### Stop
