@@ -1027,7 +1027,7 @@ git commit -m "feat(semantic): resolve cross-declaration references and derived 
 - Create: `src/test/c/reject-semantic/14-directed-op-on-undirected`
 - Create: `src/test/c/reject-semantic/15-undirected-op-on-directed`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `12-weight-without-trait`:
 
@@ -1077,14 +1077,14 @@ graph G:
         a -- b
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 ```bash
 src/main/bash/build.sh && src/main/bash/test.sh
 ```
 Expected: tests 12–15 report `but it accepts (status 0)`.
 
-- [ ] **Step 3: Implement the edge-vs-graph checks**
+- [x] **Step 3: Implement the edge-vs-graph checks**
 
 In `_checkGraphScope`, extend the existing edge loop body (the one that checks endpoints) to also validate traits and operator:
 
@@ -1112,14 +1112,14 @@ In `_checkGraphScope`, extend the existing edge loop body (the one that checks e
 	}
 ```
 
-- [ ] **Step 4: Verify GREEN**
+- [x] **Step 4: Verify GREEN**
 
 ```bash
 src/main/bash/build.sh && src/main/bash/test.sh
 ```
 Expected: tests 12–15 now report `and it does`; full suite exits 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A
@@ -1138,7 +1138,7 @@ git commit -m "feat(semantic): check edge trait and operator compatibility"
 - Create: `src/test/c/reject-semantic/17-transpose-undirected`
 - Create: `src/test/c/reject-semantic/18-forall-unknown-group`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `16-strongly-connected-undirected`:
 
@@ -1175,14 +1175,14 @@ graph G:
         assert forall n in missing: outdegree(n) = 0
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 ```bash
 src/main/bash/build.sh && src/main/bash/test.sh
 ```
 Expected: tests 16–18 report `but it accepts (status 0)`.
 
-- [ ] **Step 3: Implement constraint checks**
+- [x] **Step 3: Implement constraint checks**
 
 Add a constraint checker and call it from `_checkGraphScope` after the group-member loop:
 
@@ -1232,7 +1232,7 @@ static void _checkConstraints(Analyzer * a, GraphDecl * g, GraphInfo * info) {
 
 Call `_checkConstraints(a, g, info);` at the end of `_checkGraphScope`.
 
-- [ ] **Step 4: Implement the transpose-vs-kind check**
+- [x] **Step 4: Implement the transpose-vs-kind check**
 
 In the `TOP_LEVEL_DERIVE` case, inside the `else` branch (where `src != NULL`), after computing `kind`, add:
 
@@ -1247,14 +1247,14 @@ In the `TOP_LEVEL_DERIVE` case, inside the `else` branch (where `src != NULL`), 
 				}
 ```
 
-- [ ] **Step 5: Verify GREEN**
+- [x] **Step 5: Verify GREEN**
 
 ```bash
 src/main/bash/build.sh && src/main/bash/test.sh
 ```
 Expected: tests 16–18 now report `and it does`; full suite exits 0. (Existing accept test `17-constraint-forall` still passes — its predicate var `n` matches its bound var `n` and group `leaves` exists.)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A
@@ -1274,7 +1274,7 @@ git commit -m "feat(semantic): check constraint and transformation kind compatib
 - Create: `src/test/c/reject-semantic/21-toposort-on-undirected`
 - Create: `src/test/c/reject-semantic/22-shortest-path-unweighted`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `19-mst-on-directed`:
 
@@ -1333,14 +1333,14 @@ analysis M on G:
     run shortest_path from a to b as p
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 ```bash
 src/main/bash/build.sh && src/main/bash/test.sh
 ```
 Expected: tests 19–22 report `but it accepts (status 0)`.
 
-- [ ] **Step 3: Implement the algorithm matrix**
+- [x] **Step 3: Implement the algorithm matrix**
 
 Add a helper and call it from `_checkAnalysisScope` for each run statement (where `target != NULL`):
 
@@ -1390,14 +1390,14 @@ static void _checkAlgorithm(Analyzer * a, GraphInfo * target, Algorithm * algo) 
 
 In `_checkAnalysisScope`, inside the `if (target != NULL)` block of the run case, add `_checkAlgorithm(a, target, run->algorithm);`.
 
-- [ ] **Step 4: Verify GREEN**
+- [x] **Step 4: Verify GREEN**
 
 ```bash
 src/main/bash/build.sh && src/main/bash/test.sh
 ```
 Expected: tests 19–22 now report `and it does`; full suite exits 0. Confirm existing accept tests 22–27 still pass (their graphs carry the traits/kinds each algorithm needs; if any do not, update that accept program to declare the required trait/kind — e.g. `22-analysis-shortest-path` must be `weighted`).
 
-- [ ] **Step 5: Reconcile existing accept tests with the algorithm rules**
+- [x] **Step 5: Reconcile existing accept tests with the algorithm rules**
 
 ```bash
 for t in 22 23 24 25 26 27; do
@@ -1406,7 +1406,7 @@ done
 ```
 For each, ensure the graph satisfies its algorithm's rule (shortest_path→weighted, mst→undirected+weighted, max_flow→directed+capacitated, components→undirected, scc/toposort→directed). Edit the accept program minimally where needed, then re-run `src/main/bash/test.sh` until green.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A
@@ -1424,7 +1424,7 @@ A "meaningful construct" rule in the spirit of a reference group's mandatory-cla
 - Create: `src/test/c/reject-semantic/23-empty-analysis`
 - Create: `src/test/c/reject-semantic/24-nodeless-graph`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `src/test/c/reject-semantic/23-empty-analysis`:
 
@@ -1446,14 +1446,14 @@ graph G:
     edges:
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 ```bash
 src/main/bash/build.sh && src/main/bash/test.sh
 ```
 Expected: both new programs report `but it accepts (status 0)` — they parse (empty node list and empty statement list are grammar-legal) but are not yet rejected.
 
-- [ ] **Step 3: Implement the non-empty checks**
+- [x] **Step 3: Implement the non-empty checks**
 
 In `_checkGraphScope`, immediately after `GraphInfo * info = _registerGraph(...)`, add:
 
@@ -1473,14 +1473,14 @@ In `_checkAnalysisScope`, immediately after resolving `target` (before the resul
 
 (Empty lists are represented as `NULL` by the `Empty*SemanticAction` constructors, so a `NULL` head means the section is empty.)
 
-- [ ] **Step 4: Verify GREEN and that no accept test regresses**
+- [x] **Step 4: Verify GREEN and that no accept test regresses**
 
 ```bash
 src/main/bash/build.sh && src/main/bash/test.sh
 ```
 Expected: tests 23–24 now report `and it does`. Confirm every `src/test/c/accept/*` program still exits 0 — each declares at least one node and every analysis has at least one statement. If any accept program has an empty `nodes:` section or a statement-less analysis, that program is itself degenerate; add a minimal node/statement to it rather than weakening the rule.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A
