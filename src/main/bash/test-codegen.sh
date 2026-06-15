@@ -25,11 +25,18 @@ for test in 30-stage-i-integration; do
         continue
     fi
     ( cd "$WORK" && python3 program.py ) >/dev/null 2>&1
-    if [ "$?" == "0" ]; then
+    rc=$?
+    ok=1
+    [ "$rc" != "0" ] && ok=0
+    if [ "$test" == "30-stage-i-integration" ]; then
+        { [ -f "$WORK/Main_graph.dot" ] && [ -f "$WORK/Main_path.json" ]; } || ok=0
+    fi
+    rm -f "$WORK"/Main_*.dot "$WORK"/Main_*.json
+    if [ "$ok" == "1" ]; then
         echo -e "    $test, ${GREEN}runs cleanly${OFF}"
     else
         STATUS=1
-        echo -e "    $test, ${RED}runtime error${OFF}"
+        echo -e "    $test, ${RED}runtime error or missing artifacts${OFF}"
     fi
 done
 echo ""

@@ -73,6 +73,84 @@ static void _generateGraph(const char * varName, GraphDecl * g) {
 	}
 }
 
+/* DERIVATIONS */
+
+static const char * _transformCall(Transformation * t, const char * src) {
+	static char buffer[256];
+	switch (t->type) {
+		case TRANSFORMATION_TRANSPOSE:
+			snprintf(buffer, sizeof(buffer), "transpose(%s)", src);
+			break;
+		case TRANSFORMATION_INDUCED_SUBGRAPH:
+			snprintf(buffer, sizeof(buffer), "induced_subgraph(%s, \"%s\")", src, t->group);
+			break;
+		case TRANSFORMATION_REMOVE_SELF_LOOPS:
+			snprintf(buffer, sizeof(buffer), "remove_self_loops(%s)", src);
+			break;
+		case TRANSFORMATION_UNDERLYING:
+			snprintf(buffer, sizeof(buffer), "underlying(%s)", src);
+			break;
+	}
+	return buffer;
+}
+
+static void _generateDerive(DeriveDecl * d) {
+	printf("%s = %s\n\n", d->newId, _transformCall(d->transformation, d->fromId));
+}
+
+/* ANALYSIS */
+
+static const char * _algorithmCall(Algorithm * a, const char * graphVar) {
+	static char buffer[256];
+	const char * name = NULL;
+	switch (a->type) {
+		case ALGO_SHORTEST_PATH: name = "shortest_path"; break;
+		case ALGO_TOPOLOGICAL_SORT: name = "topological_sort"; break;
+		case ALGO_COMPONENTS: name = "components"; break;
+		case ALGO_SCC: name = "scc"; break;
+		case ALGO_MST: name = "mst"; break;
+		case ALGO_MAX_FLOW: name = "max_flow"; break;
+	}
+	if (a->from != NULL && a->to != NULL) {
+		snprintf(buffer, sizeof(buffer), "%s(%s, \"%s\", \"%s\")", name, graphVar, a->from, a->to);
+	}
+	else {
+		snprintf(buffer, sizeof(buffer), "%s(%s)", name, graphVar);
+	}
+	return buffer;
+}
+
+static void _generateAnalysis(AnalysisDecl * an) {
+	const char * graphVar = an->onGraphId;
+	for (AnalysisStmtList * it = an->statements; it != NULL; it = it->next) {
+		AnalysisStmt * stmt = it->value;
+		if (stmt->type == ANALYSIS_STMT_RUN) {
+			RunStmt * run = stmt->run;
+			printf("%s = %s\n", run->resultId, _algorithmCall(run->algorithm, graphVar));
+		}
+		else {
+			ExportStmt * ex = stmt->exportStmt;
+			const char * fmt = (ex->format == EXPORT_FORMAT_DOT) ? "dot" : "json";
+			if (ex->targetType == EXPORT_TARGET_GRAPH) {
+				if (ex->format == EXPORT_FORMAT_DOT) {
+					printf("write_dot(%s, \"%s_graph.dot\")\n", graphVar, an->id);
+				}
+				else {
+					printf("write_json({\"nodes\": list(%s.nodes), "
+						"\"edges\": [{\"from\": u, \"to\": e[\"to\"]} "
+						"for u in %s.adj for e in %s.adj[u]]}, "
+						"\"%s_graph.json\")\n", graphVar, graphVar, graphVar, an->id);
+				}
+			}
+			else {
+				printf("write_json(%s, \"%s_%s.%s\")\n",
+					ex->resultId, an->id, ex->resultId, fmt);
+			}
+		}
+	}
+	printf("\n");
+}
+
 /* HEADER */
 
 static void _generateHeader(void) {
@@ -98,6 +176,12 @@ void executeGenerator(CompilerState * compilerState) {
 		if (decl->type == TOP_LEVEL_GRAPH) {
 			_generateGraph(decl->graphDecl->id, decl->graphDecl);
 			_out("\n");
+		}
+		else if (decl->type == TOP_LEVEL_DERIVE) {
+			_generateDerive(decl->deriveDecl);
+		}
+		else {
+			_generateAnalysis(decl->analysisDecl);
 		}
 	}
 	logDebugging(_logger, "Code generation complete.");
