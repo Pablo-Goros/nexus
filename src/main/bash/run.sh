@@ -38,8 +38,14 @@ fi
 # 2) Execute the generated program: builds the graphs, checks the constraints as
 #    runtime assertions, runs the algorithms, and writes the exported artifacts.
 if ( cd "$OUT_DIR" && python3 program.py ); then
+	shopt -s nullglob
+	artifacts=("$OUT_DIR"/*.dot "$OUT_DIR"/*.json)
 	echo "Artifacts written to $OUT_DIR/:"
-	ls -1 "$OUT_DIR"/*.dot "$OUT_DIR"/*.json 2>/dev/null || echo "  (this program declares no exports)"
+	if [ ${#artifacts[@]} -gt 0 ]; then
+		printf '  %s\n' "${artifacts[@]}"
+	else
+		echo "  (this program declares no exports)"
+	fi
 else
 	echo "The generated program raised an error at runtime (e.g. a failed constraint assertion)." >&2
 	exit 1
