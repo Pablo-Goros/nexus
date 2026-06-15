@@ -13,6 +13,7 @@ The compiler covers all three stages: lexical analysis, syntactic analysis, AST 
 ## Requirements
 
 * [Docker v28.3.2](https://www.docker.com/)
+* Python 3 to execute generated Nexus programs with the bundled runtime.
 
 ## Configuration
 
@@ -56,10 +57,18 @@ where `<program>` is the path to the file that represents its entry-point.
 
 ### Test
 
-Executes every available unit-test under `src/test/c` folder:
+Executes every available frontend and semantic unit-test under `src/test/c`:
 
 ```bash
 src/main/bash/test.sh
+```
+
+For a full Stage III verification, run both the compiler test suite and the code-generation suite after building:
+
+```bash
+src/main/bash/build.sh
+src/main/bash/test.sh
+src/main/bash/test-codegen.sh
 ```
 
 ### Generate
@@ -74,6 +83,8 @@ python3 program.py    # writes <Analysis>_graph.dot, <Analysis>_<result>.json
 ```
 
 ### Test (code generation)
+
+Generates Python for representative valid programs, executes it with `nexus_runtime.py`, and checks the expected `.dot` / `.json` artifacts:
 
 ```bash
 src/main/bash/test-codegen.sh
