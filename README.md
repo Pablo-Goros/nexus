@@ -17,6 +17,8 @@ Nexus is a complete compiler: a Flex/Bison frontend (lexical analysis, syntactic
 ## Requirements
 
 * [Docker v28.3.2](https://www.docker.com/)
+* Python 3 — to execute the programs emitted by the compiler.
+* [Graphviz](https://graphviz.org/) (optional) — to render exported `.dot` files as images.
 
 ## Configuration
 
@@ -50,13 +52,35 @@ src/main/bash/build.sh
 
 ### Run
 
-Compiles a program:
+Compiles and runs a Nexus program end-to-end:
 
 ```bash
-src/main/bash/run.sh <program>
+src/main/bash/run.sh <program> [output-dir]
 ```
 
-where `<program>` is the path to the file that represents its entry-point.
+where `<program>` is the path to a Nexus source file. This generates the Python
+translation of the program, executes it against the bundled runtime, and writes
+the resulting artifacts (`.dot` / `.json`) into `<output-dir>` (default `out/`).
+The generated Python source is left at `<output-dir>/program.py` for inspection.
+
+A program that violates a domain rule is rejected at compile time, printing the
+semantic error instead of producing artifacts.
+
+### Generate & visualize
+
+Build a weighted DAG, run a shortest-path analysis, and render the graph:
+
+```bash
+src/main/bash/build.sh                                    # build the compiler (once)
+src/main/bash/run.sh src/test/c/accept/32-example-build out/
+
+cat out/Main_critical_path.json                           # the shortest-path result
+dot -Tpng out/Main_graph.dot -o out/graph.png             # render the graph (needs Graphviz)
+```
+
+To compile your own program, write a `.nex` file using the language constructs
+described in `doc/Stage-III-Report.pdf` and pass it to `run.sh` the same way.
+Ready-made example programs live under `src/test/c/accept/`.
 
 ### Test
 
