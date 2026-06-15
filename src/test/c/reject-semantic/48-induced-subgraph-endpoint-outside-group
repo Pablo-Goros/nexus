@@ -1,0 +1,17 @@
+graph G:
+    kind directed
+    traits weighted
+    nodes:
+        a
+        b
+        c
+    edges:
+        a -> b weight 1
+        b -> c weight 1
+    groups:
+        core = {a, b}
+
+derive Core from G using induced_subgraph(core)
+
+analysis A on Core:
+    run shortest_path from a to c as p

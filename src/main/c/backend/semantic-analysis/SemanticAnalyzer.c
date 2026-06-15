@@ -30,6 +30,7 @@ typedef struct GraphInfo {
 	IdSet * nodes;         /* owned */
 	IdSet * groups;        /* owned */
 	struct NodeInfo * nodeInfos;
+	struct GroupInfo * groupInfos;
 	struct EdgeInfo * edgeInfos;
 	char * root;
 	char * source;
@@ -56,6 +57,12 @@ typedef struct EdgeInfo {
 	char * to;             /* not owned: points into the AST */
 	struct EdgeInfo * next;
 } EdgeInfo;
+
+typedef struct GroupInfo {
+	char * name;           /* not owned: points into the AST */
+	IdSet * members;       /* owned */
+	struct GroupInfo * next;
+} GroupInfo;
 
 typedef struct {
 	IdSet * graphIds;      /* global: declared + derived graph ids */
@@ -125,6 +132,24 @@ static bool _addEdgeInfo(GraphInfo * g, const char * from, const char * to) {
 	return true;
 }
 
+static GroupInfo * _findGroupInfo(GraphInfo * g, const char * name) {
+	for (GroupInfo * group = g->groupInfos; group != NULL; group = group->next) {
+		if (strcmp(group->name, name) == 0) {
+			return group;
+		}
+	}
+	return NULL;
+}
+
+static GroupInfo * _addGroupInfo(GraphInfo * g, char * name) {
+	GroupInfo * group = calloc(1, sizeof(GroupInfo));
+	group->name = name;
+	group->members = createIdSet();
+	group->next = g->groupInfos;
+	g->groupInfos = group;
+	return group;
+}
+
 static void _destroyGraphs(Analyzer * a) {
 	for (GraphInfo * g = a->graphs; g != NULL; ) {
 		GraphInfo * next = g->next;
@@ -137,6 +162,12 @@ static void _destroyGraphs(Analyzer * a) {
 			EdgeInfo * eNext = e->next;
 			free(e);
 			e = eNext;
+		}
+		for (GroupInfo * group = g->groupInfos; group != NULL; ) {
+			GroupInfo * groupNext = group->next;
+			destroyIdSet(group->members);
+			free(group);
+			group = groupNext;
 		}
 		destroyIdSet(g->nodes);
 		destroyIdSet(g->groups);
@@ -154,13 +185,60 @@ static void _copyNodeIds(GraphInfo * dst, GraphInfo * src) {
 	idSetForEach(src->nodes, _addIdToSet, dst->nodes);
 }
 
-static void _copyGroupIds(GraphInfo * dst, GraphInfo * src) {
-	idSetForEach(src->groups, _addIdToSet, dst->groups);
-}
-
 static void _copyNodeInfoIds(GraphInfo * dst, GraphInfo * src) {
 	for (NodeInfo * n = src->nodeInfos; n != NULL; n = n->next) {
 		_addNodeInfo(dst, n->id, n->attr);
+	}
+}
+
+typedef struct {
+	GroupInfo * dst;
+	IdSet * filter;
+	bool copiedAny;
+} GroupCopyContext;
+
+static void _copyGroupMember(const char * id, void * context) {
+	GroupCopyContext * ctx = (GroupCopyContext *) context;
+	if (ctx->filter == NULL || idSetContains(ctx->filter, id)) {
+		idSetAdd(ctx->dst->members, id);
+		ctx->copiedAny = true;
+	}
+}
+
+static void _copyGroupInfos(GraphInfo * dst, GraphInfo * src, IdSet * filter) {
+	for (GroupInfo * group = src->groupInfos; group != NULL; group = group->next) {
+		GroupInfo * copied = _addGroupInfo(dst, group->name);
+		GroupCopyContext ctx = { .dst = copied, .filter = filter, .copiedAny = false };
+		idSetForEach(group->members, _copyGroupMember, &ctx);
+		if (ctx.copiedAny) {
+			idSetAdd(dst->groups, group->name);
+		}
+	}
+}
+
+typedef struct {
+	GraphInfo * dst;
+	GraphInfo * src;
+} NodeCopyContext;
+
+static void _copySelectedNodeInfo(const char * id, void * context) {
+	NodeCopyContext * ctx = (NodeCopyContext *) context;
+	NodeInfo * srcNode = _findNodeInfo(ctx->src, id);
+	if (srcNode != NULL) {
+		idSetAdd(ctx->dst->nodes, id);
+		_addNodeInfo(ctx->dst, srcNode->id, srcNode->attr);
+	}
+}
+
+static void _copySpecialNodes(GraphInfo * dst, GraphInfo * src) {
+	if (src->root != NULL && idSetContains(dst->nodes, src->root)) {
+		dst->root = src->root;
+	}
+	if (src->source != NULL && idSetContains(dst->nodes, src->source)) {
+		dst->source = src->source;
+	}
+	if (src->sink != NULL && idSetContains(dst->nodes, src->sink)) {
+		dst->sink = src->sink;
 	}
 }
 
@@ -259,7 +337,7 @@ static bool _graphHasCycle(GraphDecl * g, GraphInfo * info) {
 static void _checkConstraints(Analyzer * a, GraphDecl * g, GraphInfo * info) {
 	for (ConstraintList * it = g->constraints; it != NULL; it = it->next) {
 		Constraint * c = it->value;
-			switch (c->type) {
+		switch (c->type) {
 			case CONSTRAINT_SIMPLE:
 				if (c->simple == SIMPLE_STRONGLY_CONNECTED
 						&& g->kind != GRAPH_KIND_DIRECTED) {
@@ -363,8 +441,15 @@ static void _checkGraphScope(Analyzer * a, GraphDecl * g) {
 		_error(a, "Graph '%s' declares multiple 'sink' nodes.", g->id);
 	}
 	for (GroupDeclList * it = g->groups; it != NULL; it = it->next) {
-		if (!idSetAdd(info->groups, it->value->name)) {
+		bool added = idSetAdd(info->groups, it->value->name);
+		if (!added) {
 			_error(a, "Duplicate group identifier: '%s'.", it->value->name);
+		}
+		else {
+			GroupInfo * group = _addGroupInfo(info, it->value->name);
+			for (IdList * m = it->value->members; m != NULL; m = m->next) {
+				idSetAdd(group->members, m->value);
+			}
 		}
 	}
 	for (EdgeDeclList * it = g->edges; it != NULL; it = it->next) {
@@ -570,12 +655,21 @@ static void _checkTopLevel(Analyzer * a, TopLevelDecl * decl) {
 				GraphKind kind = (d->transformation->type == TRANSFORMATION_UNDERLYING)
 					? GRAPH_KIND_UNDIRECTED : src->kind;
 				GraphInfo * derived = _registerGraph(a, d->newId, kind, src->traits);
-				_copyNodeIds(derived, src);
-				_copyGroupIds(derived, src);
-				_copyNodeInfoIds(derived, src);
-				derived->root = src->root;
-				derived->source = src->source;
-				derived->sink = src->sink;
+				GroupInfo * inducedGroup = NULL;
+				if (d->transformation->type == TRANSFORMATION_INDUCED_SUBGRAPH) {
+					inducedGroup = _findGroupInfo(src, d->transformation->group);
+					if (inducedGroup != NULL) {
+						NodeCopyContext ctx = { .dst = derived, .src = src };
+						idSetForEach(inducedGroup->members, _copySelectedNodeInfo, &ctx);
+						_copyGroupInfos(derived, src, inducedGroup->members);
+					}
+				}
+				else {
+					_copyNodeIds(derived, src);
+					_copyNodeInfoIds(derived, src);
+					_copyGroupInfos(derived, src, NULL);
+				}
+				_copySpecialNodes(derived, src);
 				if (d->transformation->type == TRANSFORMATION_TRANSPOSE) {
 					derived->cycleKnown = src->cycleKnown;
 					derived->hasCycle = src->hasCycle;
@@ -589,7 +683,7 @@ static void _checkTopLevel(Analyzer * a, TopLevelDecl * decl) {
 					_error(a, "'underlying' requires a directed source graph: '%s'.", d->fromId);
 				}
 				if (d->transformation->type == TRANSFORMATION_INDUCED_SUBGRAPH
-						&& !idSetContains(src->groups, d->transformation->group)) {
+						&& inducedGroup == NULL) {
 					_error(a, "induced_subgraph references undeclared group: '%s'.",
 						d->transformation->group);
 				}

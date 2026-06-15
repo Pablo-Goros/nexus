@@ -155,6 +155,7 @@ En Nexus no existe un sistema de tipos tradicional con coerción o inferencia. E
 | Grafo de análisis no declarado | `_checkAnalysisScope` |
 | Nodo de constraint no declarado | `_checkConstraints` |
 | Grupo de forall no declarado | `_checkConstraints` |
+| Nodo de algoritmo fuera del grafo derivado por `induced_subgraph` | `_checkAnalysisScope` |
 | Endpoint de run no declarado | `_checkAnalysisScope` |
 | Resultado de export no declarado | `_checkAnalysisScope` |
 
@@ -222,7 +223,7 @@ En Nexus no existe un sistema de tipos tradicional con coerción o inferencia. E
 | Grafo sin nodos | `_checkGraphScope` |
 | Análisis sin statements | `_checkAnalysisScope` |
 
-En total se implementaron **47 validaciones semánticas** con tests de rechazo dedicados para identificadores, referencias, compatibilidad de traits/kinds, atributos estructurales de nodos, aristas paralelas, constraints y algoritmos.
+En total se implementaron **48 validaciones semánticas** con tests de rechazo dedicados para identificadores, referencias, compatibilidad de traits/kinds, atributos estructurales de nodos, aristas paralelas, constraints y algoritmos.
 
 #### 3.2.3 Generación de Código
 
@@ -301,13 +302,13 @@ El runtime (`nexus_runtime.py`, 430 líneas) es una biblioteca Python stdlib-onl
 
 ## 5. Conclusiones
 
-El compilador Nexus implementa exitosamente las tres etapas del proyecto: un frontend libre de conflictos que construye un AST completo, un analizador semántico con 47 validaciones que cubren identificadores, referencias, traits, operadores, constraints, transformaciones, algoritmos y reglas estructurales de grafos, y un generador de código que produce programas Python ejecutables.
+El compilador Nexus implementa exitosamente las tres etapas del proyecto: un frontend libre de conflictos que construye un AST completo, un analizador semántico con 48 validaciones que cubren identificadores, referencias, traits, operadores, constraints, transformaciones, algoritmos y reglas estructurales de grafos, y un generador de código que produce programas Python ejecutables.
 
 La decisión de generar Python con un runtime stdlib-only resultó acertada: permite ejecutar los programas generados sin dependencias externas (salvo Python 3 y opcionalmente Graphviz para visualizar los DOT), y facilitó el testing end-to-end de la generación de código.
 
 El enfoque TDD (write test, verify RED, implement, verify GREEN) fue especialmente efectivo para las validaciones semánticas, donde cada validación tiene un test de rechazo dedicado que documenta exactamente qué programa inválido se detecta.
 
-La suite de tests final incluye 35 tests de aceptación, 12 tests de rechazo sintáctico, 47 tests de rechazo semántico, y 24 tests de generación de código end-to-end que verifican que los programas generados se ejecutan correctamente y producen los artefactos esperados.
+La suite de tests final incluye 35 tests de aceptación, 12 tests de rechazo sintáctico, 48 tests de rechazo semántico, y 24 tests de generación de código end-to-end que verifican que los programas generados se ejecutan correctamente y producen los artefactos esperados.
 
 ---
 
