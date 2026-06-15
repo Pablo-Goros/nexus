@@ -6,7 +6,7 @@
 
 Nexus is a graph-oriented DSL compiler project for Automatas, Teoria de Lenguajes y Compiladores.
 
-Stage II targets the compiler frontend only: lexical analysis, syntactic analysis, and AST construction. The project is built from the required `Flex-Bison-Compiler` `v2.0.0` base and keeps its Docker, CMake, and shell-script workflow.
+Nexus is a complete compiler: a Flex/Bison frontend (lexical analysis, syntactic analysis, AST construction) plus a backend with semantic analysis and Python code generation. The project is built from the required `Flex-Bison-Compiler` `v2.0.0` base and keeps its Docker, CMake, and shell-script workflow.
 
 * [Requirements](#requirements)
 * [Configuration](#configuration)
