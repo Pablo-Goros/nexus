@@ -132,6 +132,9 @@ static void _checkConstraints(Analyzer * a, GraphDecl * g, GraphInfo * info) {
 
 static void _checkGraphScope(Analyzer * a, GraphDecl * g) {
 	GraphInfo * info = _registerGraph(a, g->id, g->kind, g->traits);
+	if (g->nodes == NULL) {
+		_error(a, "Graph '%s' declares no nodes.", g->id);
+	}
 	for (NodeDeclList * it = g->nodes; it != NULL; it = it->next) {
 		if (!idSetAdd(info->nodes, it->value->id)) {
 			_error(a, "Duplicate node identifier: '%s'.", it->value->id);
@@ -173,10 +176,55 @@ static void _checkGraphScope(Analyzer * a, GraphDecl * g) {
 	_checkConstraints(a, g, info);
 }
 
+static void _checkAlgorithm(Analyzer * a, GraphInfo * target, Algorithm * algo) {
+	bool directed = target->kind == GRAPH_KIND_DIRECTED;
+	switch (algo->type) {
+		case ALGO_TOPOLOGICAL_SORT:
+			if (!directed) {
+				_error(a, "'topological_sort' requires a directed graph: '%s'.", target->id);
+			}
+			break;
+		case ALGO_SCC:
+			if (!directed) {
+				_error(a, "'scc' requires a directed graph: '%s'.", target->id);
+			}
+			break;
+		case ALGO_COMPONENTS:
+			if (directed) {
+				_error(a, "'components' requires an undirected graph: '%s'.", target->id);
+			}
+			break;
+		case ALGO_MST:
+			if (directed) {
+				_error(a, "'mst' requires an undirected graph: '%s'.", target->id);
+			}
+			if (!target->traits.weighted) {
+				_error(a, "'mst' requires a weighted graph: '%s'.", target->id);
+			}
+			break;
+		case ALGO_MAX_FLOW:
+			if (!directed) {
+				_error(a, "'max_flow' requires a directed graph: '%s'.", target->id);
+			}
+			if (!target->traits.capacitated) {
+				_error(a, "'max_flow' requires a capacitated graph: '%s'.", target->id);
+			}
+			break;
+		case ALGO_SHORTEST_PATH:
+			if (!target->traits.weighted) {
+				_error(a, "'shortest_path' requires a weighted graph: '%s'.", target->id);
+			}
+			break;
+	}
+}
+
 static void _checkAnalysisScope(Analyzer * a, AnalysisDecl * an) {
 	GraphInfo * target = _findGraph(a, an->onGraphId);
 	if (target == NULL) {
 		_error(a, "Analysis references undeclared graph: '%s'.", an->onGraphId);
+	}
+	if (an->statements == NULL) {
+		_error(a, "Analysis '%s' has no statements.", an->id);
 	}
 	IdSet * results = createIdSet();
 	for (AnalysisStmtList * it = an->statements; it != NULL; it = it->next) {
@@ -194,6 +242,7 @@ static void _checkAnalysisScope(Analyzer * a, AnalysisDecl * an) {
 				if (algo->to != NULL && !idSetContains(target->nodes, algo->to)) {
 					_error(a, "Run references undeclared node: '%s'.", algo->to);
 				}
+				_checkAlgorithm(a, target, run->algorithm);
 			}
 		}
 		else {
