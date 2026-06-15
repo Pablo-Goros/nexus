@@ -1,0 +1,27 @@
+graph T:
+    kind directed
+    traits weighted
+    nodes:
+        r root
+        a
+        b
+        c terminal
+        d terminal
+    edges:
+        r -> a weight 1
+        r -> b weight 1
+        a -> c weight 1
+        a -> d weight 1
+    groups:
+        leaves = {b, c, d}
+        internal = {r, a}
+    constraints:
+        assert tree rooted_at r
+        assert binary_tree rooted_at r
+        assert forall n in leaves: outdegree(n) = 0
+        assert forall n in internal: outdegree(n) <= 2
+
+analysis TreeCheck on T:
+    run shortest_path from r to d as path_rd
+    export graph to dot
+    export result path_rd to json

@@ -1,0 +1,33 @@
+graph Build:
+    kind directed
+    traits weighted
+    nodes:
+        lexer
+        parser
+        ast
+        emit
+    edges:
+        lexer -> parser weight 2
+        parser -> ast weight 3
+        ast -> emit weight 4
+    groups:
+        core = {lexer, parser, ast}
+        sinks = {emit}
+    constraints:
+        assert acyclic
+        assert reachable lexer -> emit
+        assert forall n in sinks: outdegree(n) = 0
+
+derive CoreBuild from Build using induced_subgraph(core)
+
+derive ReverseBuild from Build using transpose
+
+analysis Main on Build:
+    run shortest_path from lexer to emit as critical_path
+    export graph to dot
+    export result critical_path to json
+
+analysis Reduced on CoreBuild:
+    run shortest_path from lexer to ast as core_path
+    export graph to json
+    export result core_path to json
