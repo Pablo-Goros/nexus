@@ -1,0 +1,10 @@
+graph G:
+    kind directed
+    traits weighted
+    nodes:
+        a
+        b
+    edges:
+        a -> b weight 1
+analysis M on G:
+    run mst as t

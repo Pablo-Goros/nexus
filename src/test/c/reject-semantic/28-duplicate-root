@@ -1,0 +1,7 @@
+graph G:
+    kind directed
+    nodes:
+        a root
+        b root
+    edges:
+        a -> b

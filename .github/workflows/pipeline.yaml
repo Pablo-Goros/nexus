@@ -24,6 +24,9 @@ jobs:
       - name: "Test."
         run: |
           src/main/bash/test.sh
+      - name: "Test code generation."
+        run: |
+          src/main/bash/test-codegen.sh
 
 name: "CI"
 

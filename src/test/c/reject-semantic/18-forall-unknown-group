@@ -1,0 +1,7 @@
+graph G:
+    kind directed
+    nodes:
+        a
+    edges:
+    constraints:
+        assert forall n in missing: outdegree(n) = 0

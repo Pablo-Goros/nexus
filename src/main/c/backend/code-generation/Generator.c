@@ -2,8 +2,6 @@
 
 /* MODULE INTERNAL STATE */
 
-const char _indentationCharacter = ' ';
-const char _indentationSize = 4;
 static Logger * _logger = NULL;
 
 /** Shutdown module's internal state. */
@@ -20,10 +18,235 @@ ModuleDestructor initializeGeneratorModule() {
 	return _shutdownGeneratorModule;
 }
 
+/* OUTPUT HELPERS */
+
+static void _out(const char * text) {
+	fputs(text, stdout);
+}
+
+static const char * _boolLiteral(bool value) {
+	return value ? "True" : "False";
+}
+
+static const char * _nodeAttr(NodeAttr attr) {
+	switch (attr) {
+		case NODE_ATTR_ROOT: return "root";
+		case NODE_ATTR_SOURCE: return "source";
+		case NODE_ATTR_SINK: return "sink";
+		case NODE_ATTR_TERMINAL: return "terminal";
+		default: return NULL;
+	}
+}
+
+/* CONSTRAINTS */
+
+static const char * _degreeFnName(DegreeFn fn) {
+	switch (fn) {
+		case DEGREE_FN_INDEGREE: return "indegree";
+		case DEGREE_FN_OUTDEGREE: return "outdegree";
+		default: return "degree";
+	}
+}
+
+static const char * _comparatorLiteral(Comparator cmp) {
+	switch (cmp) {
+		case CMP_EQ: return "=";
+		case CMP_NEQ: return "!=";
+		case CMP_GEQ: return ">=";
+		case CMP_LEQ: return "<=";
+		case CMP_GT: return ">";
+		default: return "<";
+	}
+}
+
+static void _generateConstraints(const char * varName, GraphDecl * g) {
+	for (ConstraintList * it = g->constraints; it != NULL; it = it->next) {
+		Constraint * c = it->value;
+		switch (c->type) {
+			case CONSTRAINT_SIMPLE:
+				if (c->simple == SIMPLE_CONNECTED) {
+					printf("assert_connected(%s)\n", varName);
+				}
+				else if (c->simple == SIMPLE_STRONGLY_CONNECTED) {
+					printf("assert_strongly_connected(%s)\n", varName);
+				}
+				else {
+					printf("assert_acyclic(%s)\n", varName);
+				}
+				break;
+			case CONSTRAINT_REACHABLE:
+				printf("assert_reachable(%s, \"%s\", \"%s\")\n",
+					varName, c->reachable.from, c->reachable.to);
+				break;
+			case CONSTRAINT_TREE:
+				printf("assert_tree(%s, \"%s\")\n", varName, c->tree.root);
+				break;
+			case CONSTRAINT_BINARY_TREE:
+				printf("assert_binary_tree(%s, \"%s\")\n", varName, c->binaryTree.root);
+				break;
+			case CONSTRAINT_FORALL:
+				printf("assert_forall(%s, \"%s\", \"%s\", \"%s\", %d)\n",
+					varName, c->forall.group,
+					_degreeFnName(c->forall.predicate->fn),
+					_comparatorLiteral(c->forall.predicate->cmp),
+					c->forall.predicate->rhs);
+				break;
+		}
+	}
+}
+
+/* GRAPH CONSTRUCTION */
+
+static void _generateGraph(const char * varName, GraphDecl * g) {
+	printf("%s = Graph(directed=%s, weighted=%s, capacitated=%s)\n",
+		varName,
+		_boolLiteral(g->kind == GRAPH_KIND_DIRECTED),
+		_boolLiteral(g->traits.weighted),
+		_boolLiteral(g->traits.capacitated));
+	for (NodeDeclList * it = g->nodes; it != NULL; it = it->next) {
+		const char * attr = _nodeAttr(it->value->attr);
+		if (attr != NULL) {
+			printf("%s.add_node(\"%s\", attr=\"%s\")\n", varName, it->value->id, attr);
+		}
+		else {
+			printf("%s.add_node(\"%s\")\n", varName, it->value->id);
+		}
+	}
+	for (EdgeDeclList * it = g->edges; it != NULL; it = it->next) {
+		EdgeDecl * e = it->value;
+		printf("%s.add_edge(\"%s\", \"%s\"", varName, e->from, e->to);
+		if (e->hasWeight) { printf(", weight=%d", e->weight); }
+		if (e->hasCapacity) { printf(", capacity=%d", e->capacity); }
+		printf(")\n");
+	}
+	for (GroupDeclList * it = g->groups; it != NULL; it = it->next) {
+		printf("%s.add_group(\"%s\", [", varName, it->value->name);
+		bool first = true;
+		for (IdList * m = it->value->members; m != NULL; m = m->next) {
+			printf("%s\"%s\"", first ? "" : ", ", m->value);
+			first = false;
+		}
+		printf("])\n");
+	}
+	_generateConstraints(varName, g);
+}
+
+/* DERIVATIONS */
+
+static const char * _transformCall(Transformation * t, const char * src) {
+	static char buffer[256];
+	switch (t->type) {
+		case TRANSFORMATION_TRANSPOSE:
+			snprintf(buffer, sizeof(buffer), "transpose(%s)", src);
+			break;
+		case TRANSFORMATION_INDUCED_SUBGRAPH:
+			snprintf(buffer, sizeof(buffer), "induced_subgraph(%s, \"%s\")", src, t->group);
+			break;
+		case TRANSFORMATION_REMOVE_SELF_LOOPS:
+			snprintf(buffer, sizeof(buffer), "remove_self_loops(%s)", src);
+			break;
+		case TRANSFORMATION_UNDERLYING:
+			snprintf(buffer, sizeof(buffer), "underlying(%s)", src);
+			break;
+	}
+	return buffer;
+}
+
+static void _generateDerive(DeriveDecl * d) {
+	printf("%s = %s\n\n", d->newId, _transformCall(d->transformation, d->fromId));
+}
+
+/* ANALYSIS */
+
+static const char * _algorithmCall(Algorithm * a, const char * graphVar) {
+	static char buffer[256];
+	const char * name = NULL;
+	switch (a->type) {
+		case ALGO_SHORTEST_PATH: name = "shortest_path"; break;
+		case ALGO_TOPOLOGICAL_SORT: name = "topological_sort"; break;
+		case ALGO_COMPONENTS: name = "components"; break;
+		case ALGO_SCC: name = "scc"; break;
+		case ALGO_MST: name = "mst"; break;
+		case ALGO_MAX_FLOW: name = "max_flow"; break;
+	}
+	if (a->from != NULL && a->to != NULL) {
+		snprintf(buffer, sizeof(buffer), "%s(%s, \"%s\", \"%s\")", name, graphVar, a->from, a->to);
+	}
+	else {
+		snprintf(buffer, sizeof(buffer), "%s(%s)", name, graphVar);
+	}
+	return buffer;
+}
+
+static void _generateAnalysis(AnalysisDecl * an) {
+	const char * graphVar = an->onGraphId;
+	for (AnalysisStmtList * it = an->statements; it != NULL; it = it->next) {
+		AnalysisStmt * stmt = it->value;
+		if (stmt->type == ANALYSIS_STMT_RUN) {
+			RunStmt * run = stmt->run;
+			printf("%s = %s\n", run->resultId, _algorithmCall(run->algorithm, graphVar));
+		}
+		else {
+			ExportStmt * ex = stmt->exportStmt;
+			const char * fmt = (ex->format == EXPORT_FORMAT_DOT) ? "dot" : "json";
+			if (ex->targetType == EXPORT_TARGET_GRAPH) {
+				if (ex->format == EXPORT_FORMAT_DOT) {
+					printf("write_dot(%s, \"%s_graph.dot\")\n", graphVar, an->id);
+				}
+				else {
+					printf("write_json({\"nodes\": list(%s.nodes), "
+						"\"edges\": [{\"from\": u, \"to\": e[\"to\"]} "
+						"for u in %s.adj for e in %s.adj[u]]}, "
+						"\"%s_graph.json\")\n", graphVar, graphVar, graphVar, an->id);
+				}
+			}
+			else {
+				if (ex->format == EXPORT_FORMAT_DOT) {
+					printf("write_result_dot(%s, \"%s_%s.dot\")\n",
+						ex->resultId, an->id, ex->resultId);
+				}
+				else {
+					printf("write_json(%s, \"%s_%s.%s\")\n",
+						ex->resultId, an->id, ex->resultId, fmt);
+				}
+			}
+		}
+	}
+	printf("\n");
+}
+
+/* HEADER */
+
+static void _generateHeader(void) {
+	_out("from nexus_runtime import Graph\n");
+	_out("from nexus_runtime import transpose, induced_subgraph, remove_self_loops, underlying\n");
+	_out("from nexus_runtime import shortest_path, topological_sort, components, scc, mst, max_flow\n");
+	_out("from nexus_runtime import assert_connected, assert_strongly_connected, assert_acyclic\n");
+	_out("from nexus_runtime import assert_reachable, assert_tree, assert_binary_tree, assert_forall\n");
+	_out("from nexus_runtime import write_dot, write_result_dot, write_json\n\n");
+}
+
 /** PUBLIC FUNCTIONS */
 
 void executeGenerator(CompilerState * compilerState) {
-	(void) compilerState;
-	// Stage II frontend-only: leave code generation as a stub.
-	logDebugging(_logger, "Generation is disabled in Stage II.");
+	Program * program = (Program *) compilerState->abstractSyntaxtTree;
+	if (program == NULL) {
+		logError(_logger, "Code generation received a null AST.");
+		return;
+	}
+	_generateHeader();
+	for (TopLevelDeclList * it = program->decls; it != NULL; it = it->next) {
+		TopLevelDecl * decl = it->value;
+		if (decl->type == TOP_LEVEL_GRAPH) {
+			_generateGraph(decl->graphDecl->id, decl->graphDecl);
+			_out("\n");
+		}
+		else if (decl->type == TOP_LEVEL_DERIVE) {
+			_generateDerive(decl->deriveDecl);
+		}
+		else {
+			_generateAnalysis(decl->analysisDecl);
+		}
+	}
+	logDebugging(_logger, "Code generation complete.");
 }

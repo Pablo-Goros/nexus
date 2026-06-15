@@ -1,0 +1,24 @@
+graph Flow:
+    kind directed
+    traits capacitated
+    nodes:
+        s source
+        a
+        b
+        t sink
+    edges:
+        s -> a capacity 10
+        s -> b capacity 5
+        a -> b capacity 4
+        a -> t capacity 8
+        b -> t capacity 7
+    groups:
+        middle = {a, b}
+    constraints:
+        assert reachable s -> t
+        assert forall n in middle: indegree(n) >= 1
+
+analysis MaxFlowCheck on Flow:
+    run max_flow from s to t as flow_st
+    export graph to dot
+    export result flow_st to json

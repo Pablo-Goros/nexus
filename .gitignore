@@ -28,3 +28,14 @@ FlexScanner.h
 
 AGENTS.md
 plan.md
+
+# LaTeX build artifacts (report). The compiled PDF (doc/*.pdf) is committed.
+doc/report/*.aux
+doc/report/*.log
+doc/report/*.out
+doc/report/*.toc
+doc/report/*.pdf
+
+# Course handouts (not part of the deliverable).
+*Proyecto Especial.pdf
+*Cronograma*.pdf

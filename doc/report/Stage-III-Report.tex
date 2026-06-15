@@ -1,0 +1,643 @@
+% Nexus -- Informe Final (Stage III)
+% Compile with:  pdflatex Stage-III-Report.tex  (run twice for the ToC)
+% Requires a TeX distribution with: listings, xcolor, booktabs, geometry,
+% hyperref, lmodern and (optionally) babel-spanish.
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[spanish,es-noshorthands]{babel}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black}
+
+% ---- Code listing style (mirrors the Stage I document) --------------------
+\definecolor{nexusbg}{rgb}{0.97,0.97,0.97}
+\definecolor{nexuskw}{rgb}{0.00,0.20,0.60}
+\definecolor{nexuscm}{rgb}{0.00,0.50,0.00}
+
+\lstdefinelanguage{Nexus}{
+  morekeywords={graph,kind,directed,undirected,traits,weighted,capacitated,
+    nodes,edges,groups,constraints,assert,connected,strongly_connected,
+    acyclic,reachable,tree,binary_tree,rooted_at,forall,in,derive,from,using,
+    transpose,induced_subgraph,remove_self_loops,underlying,analysis,on,run,
+    as,export,result,to,dot,json,root,source,sink,terminal,degree,indegree,
+    outdegree,shortest_path,topological_sort,components,scc,mst,max_flow,
+    weight,capacity},
+  sensitive=true,
+  morecomment=[l]{//},
+}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{nexusbg},
+  keywordstyle=\color{nexuskw}\bfseries,
+  commentstyle=\color{nexuscm}\itshape,
+  frame=single, framerule=0pt, framesep=6pt,
+  breaklines=true, columns=fullflexible, showstringspaces=false,
+  xleftmargin=4pt, xrightmargin=4pt, aboveskip=1em, belowskip=1em,
+  language=Nexus,
+}
+
+\newcommand{\code}[1]{\texttt{#1}}
+
+\begin{document}
+
+% --------------------------------------------------------------------------
+\begin{center}
+  {\Huge\bfseries Nexus}\\[0.4em]
+  {\Large Diseño e Implementación de un Lenguaje}\\[0.8em]
+  {\large Informe Final --- Stage III}\\[0.6em]
+  Autómatas, Teoría de Lenguajes y Compiladores\\
+  Ingeniería Informática --- ITBA
+\end{center}
+\vspace{1em}
+
+\begin{center}
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Nombre} & \textbf{Apellido} & \textbf{Legajo} & \textbf{E-mail} \\
+\midrule
+Pablo   & Gorostiaga & 65148 & pgorostiaga@itba.edu.ar \\
+Franco  & Pampuri    & 65552 & fpampuri@itba.edu.ar \\
+Jonas   & Glaubart   & 65790 & jglaubart@itba.edu.ar \\
+Eugenio & Migliaro   & 65508 & emigliaro@itba.edu.ar \\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{1.5em}
+
+\tableofcontents
+\newpage
+
+% ==========================================================================
+\section{Introducción}
+
+\emph{Nexus} es un compilador para un DSL (\emph{Domain-Specific Language})
+orientado a grafos, desarrollado para la materia Autómatas, Teoría de Lenguajes
+y Compiladores. El proyecto se entregó en tres etapas que se reflejan en este
+informe:
+
+\begin{enumerate}[noitemsep]
+  \item \textbf{Stage I --- Diseño:} concepción del dominio, la gramática y la
+        sintaxis del lenguaje.
+  \item \textbf{Stage II --- Frontend:} análisis léxico (Flex), análisis
+        sintáctico (Bison) y construcción del AST.
+  \item \textbf{Stage III --- Backend:} análisis semántico, generación de
+        código y la documentación final.
+\end{enumerate}
+
+El objetivo de Stage III fue completar el \emph{pipeline} del compilador:
+validar el programa de entrada contra las reglas del dominio (análisis
+semántico), emitir un artefacto ejecutable (generación de código) y documentar
+las decisiones de diseño e implementación tomadas a lo largo de todo el
+proyecto.
+
+El compilador acepta programas Nexus que declaran grafos con nodos, aristas,
+grupos y restricciones; definen derivaciones (transformaciones de grafos); y
+especifican análisis (algoritmos de grafos con exportación de resultados). La
+salida es un programa Python que, junto con la biblioteca de \emph{runtime}
+\code{nexus\_runtime.py}, construye los grafos, valida las restricciones,
+ejecuta los algoritmos y exporta los resultados a formato DOT o JSON.
+
+% ==========================================================================
+\section{Modelo Computacional}
+
+\subsection{Dominio}
+
+El dominio de Nexus es el \textbf{modelado, validación, transformación y
+análisis de grafos}. El lenguaje describe grafos como objetos matemáticos de
+manera declarativa, indicando su estructura, sus propiedades y los análisis
+que se desean ejecutar sobre ellos. En concreto, Nexus permite:
+
+\begin{itemize}[noitemsep]
+  \item \textbf{Declarar grafos} dirigidos o no dirigidos, con \emph{traits}
+        opcionales (\code{weighted}, \code{capacitated}).
+  \item \textbf{Definir estructura:} nodos con atributos semánticos opcionales
+        (\code{root}, \code{source}, \code{sink}, \code{terminal}), aristas con
+        peso y/o capacidad, y grupos de nodos.
+  \item \textbf{Especificar restricciones} sobre la estructura del grafo:
+        conectividad, aciclicidad, alcanzabilidad, estructura de árbol y
+        predicados cuantitativos sobre grado.
+  \item \textbf{Derivar nuevos grafos} mediante transformaciones: transposición,
+        subgrafo inducido, eliminación de \emph{self-loops} y grafo subyacente.
+  \item \textbf{Ejecutar algoritmos:} camino mínimo, orden topológico,
+        componentes conexas, componentes fuertemente conexas, árbol de
+        expansión mínima y flujo máximo.
+  \item \textbf{Exportar} grafos y resultados a DOT (para visualización con
+        Graphviz) o JSON.
+\end{itemize}
+
+El foco del diseño estuvo puesto en un núcleo reducido pero expresivo, con una
+especificación clara, consistente y formalmente verificable: cada construcción
+del lenguaje tiene precondiciones de dominio que el compilador puede comprobar
+estáticamente.
+
+\subsection{Lenguaje}
+
+\subsubsection{Gramática}
+
+El lenguaje queda definido por una gramática
+$G = \langle \Sigma, N, \Pi, S \rangle$ de tipo 2 (libre de contexto). El
+analizador léxico (Flex) define el alfabeto $\Sigma$ a partir de los lexemas
+del lenguaje, mientras que el analizador sintáctico (Bison) define el conjunto
+de no-terminales $N$, las producciones $\Pi$ y el símbolo inicial $S$. Ambas
+fases en conjunto conforman la gramática que genera el lenguaje. La gramática
+es LALR(1) y libre de conflictos.
+
+El símbolo inicial $S$ deriva un \code{Program}: una o más declaraciones de
+nivel superior, cada una de las cuales es una declaración de grafo
+(\code{graph}), una derivación (\code{derive}) o un bloque de análisis
+(\code{analysis}).
+
+\subsubsection{Sintaxis general}
+
+\begin{lstlisting}
+graph Build:
+    kind directed
+    traits weighted
+    nodes:
+        lexer
+        parser
+        ast
+        emit
+    edges:
+        lexer -> parser weight 2
+        parser -> ast weight 3
+        ast -> emit weight 4
+    groups:
+        core = {lexer, parser, ast}
+        sinks = {emit}
+    constraints:
+        assert acyclic
+        assert reachable lexer -> emit
+        assert forall n in sinks: outdegree(n) = 0
+
+derive CoreBuild from Build using induced_subgraph(core)
+
+analysis Main on Build:
+    run shortest_path from lexer to emit as critical_path
+    export graph to dot
+    export result critical_path to json
+\end{lstlisting}
+
+Los bloques \code{traits}, \code{groups} y \code{constraints} son opcionales;
+cuando aparecen deben respetar exactamente la sintaxis del lenguaje y ubicarse
+dentro de la declaración del grafo correspondiente.
+
+\subsubsection{Construcciones}
+
+\begin{longtable}{@{}p{0.46\linewidth}p{0.50\linewidth}@{}}
+\toprule
+\textbf{Construcción} & \textbf{Significado} \\
+\midrule
+\endhead
+\code{graph <id>:} & Declara un grafo con identificador único. \\
+\code{kind directed|undirected} & Tipo del grafo (obligatorio). \\
+\code{traits weighted capacitated} & Propiedades opcionales del grafo. \\
+\code{nodes:} & Sección de declaración de nodos. \\
+\code{<id> [root|source|sink|terminal]} & Nodo con atributo semántico opcional. \\
+\code{edges:} & Sección de declaración de aristas. \\
+\code{<u> -> <v> [weight N] [capacity N]} & Arista dirigida (peso/capacidad opcional). \\
+\code{<u> -- <v> [weight N] [capacity N]} & Arista no dirigida (peso/capacidad opcional). \\
+\code{groups:} & Sección de declaración de grupos. \\
+\code{<id> = \{<n1>, <n2>, ...\}} & Grupo nombrado de nodos. \\
+\code{constraints:} & Sección de restricciones. \\
+\code{assert connected} & Grafo conexo (solo \code{undirected}). \\
+\code{assert strongly\_connected} & Fuertemente conexo (solo \code{directed}). \\
+\code{assert acyclic} & Grafo acíclico. \\
+\code{assert reachable <u> -> <v>} & Existe un camino de $u$ a $v$. \\
+\code{assert tree rooted\_at <r>} & Es árbol con raíz $r$ (solo \code{directed}). \\
+\code{assert binary\_tree rooted\_at <r>} & Es árbol binario con raíz $r$ (solo \code{directed}). \\
+\code{assert forall <v> in <g>: <pred>} & Predicado de grado para todo nodo del grupo. \\
+\code{derive <id> from <src> using <t>} & Crea un grafo derivado. \\
+\code{analysis <id> on <graph>:} & Bloque de análisis sobre un grafo. \\
+\code{run <algo> [from <u> to <v>] as <r>} & Ejecuta un algoritmo y nombra su resultado. \\
+\code{export graph to dot|json} & Exporta el grafo. \\
+\code{export result <id> to dot|json} & Exporta un resultado. \\
+\bottomrule
+\end{longtable}
+
+\noindent\textbf{Predicados de grado:} \code{degree(n)}, \code{indegree(n)},
+\code{outdegree(n)} comparados con \code{=}, \code{!=}, \code{>=}, \code{<=},
+\code{<}, \code{>} y un valor entero.\\
+\textbf{Transformaciones:} \code{transpose}, \code{induced\_subgraph(<group>)},
+\code{remove\_self\_loops}, \code{underlying}.\\
+\textbf{Algoritmos:} \code{shortest\_path}, \code{topological\_sort},
+\code{components}, \code{scc}, \code{mst}, \code{max\_flow}.
+
+\subsubsection{Semántica de los atributos de nodo}
+
+Los atributos de nodo no son meras etiquetas descriptivas, sino anotaciones con
+semántica verificable por el compilador:
+
+\begin{itemize}[noitemsep]
+  \item \code{root}: vértice raíz del grafo. A lo sumo uno por grafo; en grafos
+        dirigidos debe cumplir \code{indegree(root) = 0}. Toda restricción de
+        \code{tree}/\code{binary\_tree} debe enraizarse en este nodo.
+  \item \code{source}: origen principal de un grafo dirigido. A lo sumo uno;
+        debe cumplir \code{indegree = 0} y \code{outdegree > 0}.
+  \item \code{sink}: destino principal de un grafo dirigido. A lo sumo uno;
+        debe cumplir \code{outdegree = 0} e \code{indegree > 0}.
+  \item \code{terminal}: nodo hoja. En grafos dirigidos
+        \code{outdegree = 0}; en no dirigidos \code{degree = 1}. Puede haber
+        varios.
+\end{itemize}
+
+\subsubsection{Reglas estructurales}
+
+Se permiten \emph{self-loops} pero no aristas paralelas: entre dos vértices
+puede existir a lo sumo una arista (pares ordenados en grafos dirigidos, pares
+no ordenados en no dirigidos). Si un grafo declara \code{assert acyclic},
+el compilador rechaza todo \emph{self-loop} y todo ciclo, ya que constituyen
+violaciones de la aciclicidad.
+
+% ==========================================================================
+\section{Implementación}
+
+El \code{EntryPoint} ejecuta el \emph{pipeline} en tres fases:
+\textbf{parse $\rightarrow$ análisis semántico $\rightarrow$ generación de
+código}. La fase semántica sólo habilita la generación si el programa es
+válido respecto del dominio.
+
+\subsection{Frontend}
+
+El frontend fue construido en Stage II y no requirió modificaciones de fondo en
+Stage III.
+
+\textbf{Análisis léxico (Flex).} El \emph{lexer} (\code{FlexPatterns.l})
+reconoce las palabras reservadas del lenguaje (\code{graph}, \code{kind},
+\code{directed}, \code{undirected}, \code{traits}, \code{nodes}, \code{edges},
+\code{groups}, \code{constraints}, \code{assert}, los nombres de constraints,
+transformaciones y algoritmos, los atributos de nodo, etc.), los operadores
+(\code{->}, \code{--}, \code{=}, \code{!=}, \code{>=}, \code{<=}, \code{<},
+\code{>}), los delimitadores (\code{:}, \code{\{}, \code{\}}, \code{,},
+\code{(}, \code{)}), identificadores (\code{[a-zA-Z\_][a-zA-Z0-9\_]*}),
+enteros y comentarios de línea (\code{//}).
+
+\textbf{Análisis sintáctico (Bison).} La gramática (\code{BisonGrammar.y})
+define las producciones del lenguaje y las acciones semánticas que construyen el
+AST. Es LALR(1) y libre de conflictos.
+
+\textbf{AST (\code{AbstractSyntaxTree.h/c}).} Define los tipos del árbol con un
+diseño de unión etiquetada (\emph{tagged union}). El nodo raíz es
+\code{Program \{ TopLevelDeclList * decls \}}. Cada \code{TopLevelDecl} es una
+unión sobre \code{GraphDecl}, \code{DeriveDecl} y \code{AnalysisDecl}. Se
+proveen constructores, destructores y cobertura de \code{\%destructor} en Bison
+para evitar \emph{memory leaks}. El AST es el contrato de entrada del backend.
+
+\subsection{Backend}
+
+\subsubsection{Tabla de símbolos}
+
+La tabla de símbolos se implementa mediante \code{IdSet}, un \emph{hash-set} de
+\emph{strings} con resolución de colisiones por encadenamiento
+(\code{IdSet.h/c}). Ofrece tres operaciones:
+
+\begin{itemize}[noitemsep]
+  \item \code{idSetAdd(set, id)} --- inserta una copia del identificador;
+        retorna \code{false} si ya existía (detección de duplicados).
+  \item \code{idSetContains(set, id)} --- consulta de pertenencia.
+  \item \code{idSetForEach(set, visit, ctx)} --- itera sobre todos los
+        identificadores (usado para propagar nodos/grupos a grafos derivados).
+\end{itemize}
+
+El analizador semántico (\code{SemanticAnalyzer.c}) mantiene las siguientes
+tablas, organizadas como una pila de \emph{scopes}:
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Tabla} & \textbf{Scope} & \textbf{Contenido} \\
+\midrule
+\code{graphIds}        & Global       & Grafos declarados y derivados \\
+\code{analysisIds}     & Global       & Identificadores de análisis \\
+\code{GraphInfo.nodes} & Por grafo    & Nodos declarados \\
+\code{GraphInfo.groups}& Por grafo    & Grupos declarados \\
+\code{results}         & Por análisis & Resultados de \code{run ... as <id>} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Adicionalmente, \code{GraphInfo} almacena el \code{kind} y los \code{traits} de
+cada grafo en un registro enlazado, permitiendo validar operaciones
+\emph{cross-graph} (derivaciones y análisis que referencian grafos por nombre,
+incluyendo grafos derivados).
+
+\subsubsection{Sistema de tipos: \emph{graph-property checking}}
+
+En Nexus no existe un sistema de tipos tradicional con coerción o inferencia.
+El ``sistema de tipos'' se reinterpreta como \textbf{validación de propiedades
+de grafos}: cada operación impone precondiciones sobre el \code{kind} y los
+\code{traits} del grafo objetivo. Se implementaron \textbf{48 validaciones
+semánticas}, cada una con un test de rechazo dedicado. La siguiente matriz las
+resume agrupadas por categoría y por la función del analizador que las aplica.
+
+\paragraph{Identificadores duplicados.}
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Validación} & \textbf{Función} \\
+\midrule
+Grafo duplicado            & \code{\_checkTopLevel} \\
+Análisis duplicado         & \code{\_checkTopLevel} \\
+Nodo duplicado             & \code{\_checkGraphScope} \\
+Grupo duplicado            & \code{\_checkGraphScope} \\
+Resultado duplicado        & \code{\_checkAnalysisScope} \\
+Arista paralela duplicada  & \code{\_checkGraphScope} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Referencias no declaradas.}
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Validación} & \textbf{Función} \\
+\midrule
+Endpoint de arista       & \code{\_checkGraphScope} \\
+Miembro de grupo         & \code{\_checkGraphScope} \\
+Grafo fuente de \code{derive} & \code{\_checkTopLevel} \\
+Grafo de \code{analysis} & \code{\_checkAnalysisScope} \\
+Nodo de \code{constraint}& \code{\_checkConstraints} \\
+Grupo de \code{forall}   & \code{\_checkConstraints} \\
+Endpoint de \code{run}   & \code{\_checkAnalysisScope} \\
+Nodo fuera del subgrafo \code{induced\_subgraph} & \code{\_checkAnalysisScope} \\
+Resultado de \code{export} & \code{\_checkAnalysisScope} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Traits, operadores y atributos de nodo.}
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Validación} & \textbf{Función} \\
+\midrule
+\code{weight} sin trait \code{weighted}    & \code{\_checkGraphScope} \\
+\code{capacity} sin trait \code{capacitated} & \code{\_checkGraphScope} \\
+\code{->} en grafo \code{undirected}       & \code{\_checkGraphScope} \\
+\code{--} en grafo \code{directed}         & \code{\_checkGraphScope} \\
+\code{source}/\code{sink} en \code{undirected} & \code{\_checkGraphScope} \\
+Múltiples \code{root}/\code{source}/\code{sink} & \code{\_checkGraphScope} \\
+\code{root} con \code{indegree} $\neq 0$   & \code{\_checkGraphScope} \\
+\code{source}: \code{indegree}$\neq 0$ u \code{outdegree}$=0$ & \code{\_checkGraphScope} \\
+\code{sink}: \code{outdegree}$\neq 0$ o \code{indegree}$=0$ & \code{\_checkGraphScope} \\
+\code{terminal} con grado inválido         & \code{\_checkGraphScope} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Constraints, transformaciones y algoritmos vs. \code{kind}/\code{traits}.}
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Validación} & \textbf{Función} \\
+\midrule
+\code{connected} en \code{directed}        & \code{\_checkConstraints} \\
+\code{strongly\_connected} en \code{undirected} & \code{\_checkConstraints} \\
+\code{tree}/\code{binary\_tree} en \code{undirected} & \code{\_checkConstraints} \\
+\code{rooted\_at} distinto del nodo \code{root} & \code{\_checkConstraints} \\
+\code{acyclic} con ciclo o \emph{self-loop} & \code{\_checkConstraints} \\
+\code{transpose}/\code{underlying} en \code{undirected} & \code{\_checkTopLevel} \\
+\code{induced\_subgraph} con grupo no declarado & \code{\_checkTopLevel} \\
+\code{topological\_sort}/\code{scc} en \code{undirected} & \code{\_checkAlgorithm} \\
+\code{topological\_sort} en grafo cíclico  & \code{\_checkAlgorithm} \\
+\code{components} en \code{directed}       & \code{\_checkAlgorithm} \\
+\code{mst} en \code{directed} o sin \code{weighted} & \code{\_checkAlgorithm} \\
+\code{max\_flow} en \code{undirected} o sin \code{capacitated} & \code{\_checkAlgorithm} \\
+\code{max\_flow} con endpoints $\neq$ \code{source}/\code{sink} & \code{\_checkAlgorithm} \\
+\code{shortest\_path} sin \code{weighted}  & \code{\_checkAlgorithm} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Estructurales.}
+Grafo sin nodos (\code{\_checkGraphScope}) y análisis sin sentencias
+(\code{\_checkAnalysisScope}): aunque la gramática los admite, no son
+constructos semánticamente útiles y se rechazan.
+
+\subsubsection{Generación de código}
+
+El generador (\code{Generator.c}) realiza un recorrido del AST dirigido por
+sintaxis (\emph{syntax-directed}), emitiendo Python a \emph{stdout}. La función
+\code{executeGenerator} recorre la lista de \code{TopLevelDecl} y despacha a:
+
+\begin{itemize}[noitemsep]
+  \item \code{\_generateGraph} --- emite la construcción del grafo
+        (\code{Graph(directed=..., weighted=..., capacitated=...)}), seguida de
+        \code{add\_node}, \code{add\_edge}, \code{add\_group} y las
+        \emph{assertions} de las restricciones.
+  \item \code{\_generateDerive} --- emite una asignación con la llamada a la
+        transformación correspondiente.
+  \item \code{\_generateAnalysis} --- emite los \code{run} como asignaciones al
+        resultado del algoritmo y los \code{export} como llamadas a
+        \code{write\_dot}/\code{write\_json}.
+\end{itemize}
+
+El encabezado generado importa los símbolos del \emph{runtime}:
+
+\begin{lstlisting}[language=Python]
+from nexus_runtime import Graph
+from nexus_runtime import transpose, induced_subgraph, remove_self_loops, underlying
+from nexus_runtime import shortest_path, topological_sort, components, scc, mst, max_flow
+from nexus_runtime import assert_connected, assert_strongly_connected, assert_acyclic
+from nexus_runtime import assert_reachable, assert_tree, assert_binary_tree, assert_forall
+from nexus_runtime import write_dot, write_json
+\end{lstlisting}
+
+\textbf{Decisión de diseño.} Se optó por emitir un programa Python plano (sin
+clases, funciones ni indentación) porque el modelo de ejecución de Nexus es
+estrictamente secuencial: declarar, derivar, analizar. Esto simplifica el
+generador y hace la salida directamente legible.
+
+\subsubsection{Runtime}
+
+La pregunta de diseño que plantea la consigna --- la relevancia o no de un
+\emph{runtime} para el dominio --- se respondió afirmativamente: el dominio de
+grafos requiere estructuras de datos y algoritmos no triviales que conviene
+delegar a una biblioteca, en lugar de inlinearlos en cada programa generado. El
+\emph{runtime} (\code{nexus\_runtime.py}) es una biblioteca Python de
+\emph{solo biblioteca estándar} que se distribuye como \emph{asset} junto al
+compilador; no se enlaza al compilador, es una dependencia del programa
+generado.
+
+\begin{center}
+\begin{tabular}{@{}p{0.26\linewidth}p{0.66\linewidth}@{}}
+\toprule
+\textbf{Componente} & \textbf{Función} \\
+\midrule
+\code{Graph}   & \code{add\_node}, \code{add\_edge}, \code{add\_group},
+                 \code{neighbors}. Representación: lista de adyacencia con
+                 diccionarios \code{\{to, weight, capacity\}}. \\
+Derivaciones   & \code{transpose}, \code{induced\_subgraph},
+                 \code{remove\_self\_loops}, \code{underlying}. \\
+Algoritmos     & \code{shortest\_path} (Dijkstra), \code{topological\_sort}
+                 (Kahn), \code{components} (BFS), \code{scc} (Tarjan),
+                 \code{mst} (Kruskal + Union-Find), \code{max\_flow}
+                 (Edmonds-Karp). \\
+Assertions     & \code{assert\_connected}, \code{assert\_strongly\_connected},
+                 \code{assert\_acyclic}, \code{assert\_reachable},
+                 \code{assert\_tree}, \code{assert\_binary\_tree},
+                 \code{assert\_forall}. \\
+Exportadores   & \code{write\_dot}, \code{write\_result\_dot},
+                 \code{write\_json}. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Validaciones \emph{compile-time} vs. \emph{runtime}.} Las restricciones
+del lenguaje se verifican en dos momentos complementarios:
+\begin{itemize}[noitemsep]
+  \item \emph{Compile-time}: el analizador semántico verifica que la
+        restricción sea \emph{aplicable} al tipo de grafo (p.\,ej. \code{tree}
+        sólo en \code{directed}). Previene errores de tipo.
+  \item \emph{Runtime}: las \emph{assertions} ejecutables verifican que el grafo
+        concreto \emph{cumple} la restricción (p.\,ej. que efectivamente es un
+        árbol). Previene errores de valor que no pueden conocerse estáticamente.
+\end{itemize}
+
+\subsubsection{Pruebas}
+
+La suite de pruebas final comprende:
+
+\begin{center}
+\begin{tabular}{@{}lr@{}}
+\toprule
+\textbf{Suite} & \textbf{Programas} \\
+\midrule
+Aceptación (frontend + backend)         & 35 \\
+Rechazo léxico/sintáctico               & 12 \\
+Rechazo semántico                       & 48 \\
+Generación de código \emph{end-to-end}  & 24 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+El \emph{harness} \code{test.sh} ejecuta las suites de aceptación y rechazo
+(verificando códigos de salida) y \code{test-codegen.sh} genera Python desde los
+programas de aceptación, lo ejecuta y comprueba que se produzcan los artefactos
+DOT/JSON esperados. Una \emph{pipeline} de Integración Continua
+(\code{.github/workflows/pipeline.yaml}) instala el toolchain, construye y
+ejecuta ambos \emph{harness} en cada \emph{push} y \emph{pull request}.
+
+\subsection{Adicionales}
+
+\begin{itemize}[noitemsep]
+  \item \textbf{Exportador DOT:} genera archivos compatibles con Graphviz, con
+        peso y capacidad como \emph{labels} de arista y atributos de nodo.
+  \item \textbf{Exportador JSON:} serializa grafos como
+        \code{\{nodes: [...], edges: [...]\}} y resultados de algoritmos como
+        estructuras Python.
+  \item \textbf{Grafos derivados con validación completa:} al procesar un
+        \code{derive}, el analizador sintetiza un \code{GraphInfo} para el grafo
+        derivado, copiando nodos y grupos del grafo fuente (vía
+        \code{idSetForEach}); \code{underlying} además cambia el \code{kind} a
+        \code{undirected}. Esto permite que análisis posteriores referencien
+        grafos derivados con la misma validación que los grafos declarados.
+  \item \textbf{Metodología TDD:} cada validación semántica se desarrolló
+        escribiendo primero el test de rechazo (RED), implementando la regla y
+        verificando el paso a verde (GREEN).
+\end{itemize}
+
+\subsection{Dificultades Encontradas}
+
+\begin{enumerate}[noitemsep]
+  \item \textbf{Resolución de nodos \emph{cross-graph}.} Los grafos derivados
+        necesitan conocer los nodos del grafo fuente para validar análisis
+        posteriores. Se resolvió con \code{idSetForEach} para copiar los
+        conjuntos de nodos y grupos al \code{GraphInfo} del derivado.
+  \item \textbf{Logs contaminando \emph{stdout}.} El sistema de \emph{logging}
+        del proyecto base envía DEBUG/INFO a \emph{stdout}, donde el generador
+        también escribe el código Python. Se resolvió capturando la salida con
+        \code{LOGGING\_LEVEL=CRITICAL}.
+  \item \textbf{Predicados de grado a \emph{runtime}.} Predicados como
+        \code{forall n in g: degree(n) >= K} no pueden verificarse en
+        \emph{compile-time} porque requieren la estructura concreta del grafo;
+        se delegaron al \emph{runtime} como \emph{assertions} parametrizadas.
+  \item \textbf{\emph{Ownership} de memoria bajo Bison.} El AST mantiene el
+        \emph{ownership} de todos los \emph{strings} (duplicados con
+        \code{strdup} en las acciones semánticas). El analizador y el generador
+        usan punteros prestados; los \code{IdSet} duplican sus claves para ser
+        independientes del AST.
+  \item \textbf{Decisiones gramática vs. semántica.} Algunas restricciones
+        podrían haberse forzado en la gramática, pero se optó por una gramática
+        permisiva con validación semántica posterior: simplifica la gramática y
+        produce mejores mensajes de error.
+\end{enumerate}
+
+% ==========================================================================
+\section{Futuras Extensiones}
+
+\begin{itemize}[noitemsep]
+  \item \textbf{Coerción de tipos:} permitir \code{shortest\_path} en grafos no
+        \code{weighted} asumiendo peso unitario.
+  \item \textbf{Más algoritmos:} recorridos BFS/DFS, detección de ciclos con
+        reporte del ciclo, flujo de costo mínimo.
+  \item \textbf{Salida multi-archivo:} emitir cada análisis a un archivo
+        separado en vez de un único programa.
+  \item \textbf{Lenguaje de \emph{constraints} más rico:} combinaciones lógicas
+        (\code{and}, \code{or}, \code{not}) y predicados sobre aristas.
+  \item \textbf{\emph{Targets} alternativos:} además de Python, emitir C++,
+        Rust o directamente DOT/JSON sin \emph{runtime}.
+  \item \textbf{Importación de grafos:} cargar grafos desde archivos DOT o JSON.
+  \item \textbf{Subsistema generador/build:} construcción paramétrica de grafos
+        con variables locales, condicionales y estructuras iterativas acotadas
+        (propuesto ya en Stage I como extensión).
+\end{itemize}
+
+% ==========================================================================
+\section{Conclusiones}
+
+El compilador Nexus implementa exitosamente las tres etapas del proyecto: un
+frontend libre de conflictos que construye un AST completo, un analizador
+semántico con 48 validaciones que cubren identificadores, referencias,
+\emph{traits}, operadores, atributos de nodo, restricciones, transformaciones,
+algoritmos y reglas estructurales, y un generador que produce programas Python
+ejecutables.
+
+La decisión de generar Python con un \emph{runtime} de solo biblioteca estándar
+resultó acertada: los programas generados se ejecutan sin dependencias externas
+(salvo Python 3 y, opcionalmente, Graphviz para visualizar los DOT), lo que
+mantiene al compilador libre de dependencias enlazadas y facilita el
+\emph{testing} \emph{end-to-end}.
+
+El enfoque TDD fue particularmente efectivo para las validaciones semánticas:
+cada regla quedó documentada por un test de rechazo dedicado que describe
+exactamente qué programa inválido detecta. La separación entre validaciones de
+\emph{compile-time} (aplicabilidad) y \emph{runtime} (cumplimiento) permitió
+modelar fielmente el dominio sin sobrecargar ninguna de las dos fases.
+
+% ==========================================================================
+\section{Referencias}
+
+\begin{itemize}[noitemsep]
+  \item Stage I --- Diseño del lenguaje Nexus: \code{doc/TLA\_Stage\_I.pdf}
+        (documento de diseño original).
+  \item Flex-Bison-Compiler v2.0.0:
+        \url{https://github.com/agustin-golmar/Flex-Bison-Compiler/tree/v2.0.0}
+        (proyecto base).
+  \item Material de la cátedra: apuntes de Análisis Semántico (v0.2.0), Tabla de
+        Símbolos, Sistema de Tipos, Generación de Código (v0.1.0) y Runtime
+        (v0.1.0).
+\end{itemize}
+
+% ==========================================================================
+\section{Bibliografía}
+
+\begin{itemize}[noitemsep]
+  \item Aho, A.\,V., Lam, M.\,S., Sethi, R., \& Ullman, J.\,D. (2006).
+        \emph{Compilers: Principles, Techniques, and Tools} (2.\textsuperscript{a} ed.).
+        Addison-Wesley.
+  \item Levine, J. (2009). \emph{flex \& bison}. O'Reilly Media.
+  \item Cormen, T.\,H., Leiserson, C.\,E., Rivest, R.\,L., \& Stein, C. (2009).
+        \emph{Introduction to Algorithms} (3.\textsuperscript{a} ed.). MIT Press.
+\end{itemize}
+
+\end{document}

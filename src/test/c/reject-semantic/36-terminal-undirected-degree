@@ -1,0 +1,9 @@
+graph G:
+    kind undirected
+    nodes:
+        a terminal
+        b
+        c
+    edges:
+        a -- b
+        a -- c

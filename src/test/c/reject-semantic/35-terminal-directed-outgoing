@@ -1,0 +1,7 @@
+graph G:
+    kind directed
+    nodes:
+        a terminal
+        b
+    edges:
+        a -> b

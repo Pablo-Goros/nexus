@@ -1,0 +1,6 @@
+graph G:
+    kind undirected
+    nodes:
+        a
+    edges:
+derive R from G using transpose

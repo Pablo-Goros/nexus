@@ -1,0 +1,8 @@
+graph G:
+    kind directed
+    nodes:
+        a
+        t sink
+    edges:
+        a -> t
+        t -> a

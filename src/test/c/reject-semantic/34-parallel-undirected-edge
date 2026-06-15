@@ -1,0 +1,8 @@
+graph G:
+    kind undirected
+    nodes:
+        a
+        b
+    edges:
+        a -- b
+        b -- a

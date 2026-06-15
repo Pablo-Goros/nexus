@@ -9,4 +9,5 @@ RUN apt-get update --yes \
 		flex \
 		gcc \
 		make \
+		python3 \
 	&& rm --force --recursive /var/lib/apt/lists/*

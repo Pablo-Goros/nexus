@@ -1,0 +1,7 @@
+graph G:
+    kind directed
+    nodes:
+        a
+    edges:
+analysis M on H:
+    export graph to dot
