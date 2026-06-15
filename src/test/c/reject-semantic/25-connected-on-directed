@@ -1,0 +1,9 @@
+graph G:
+    kind directed
+    nodes:
+        a
+        b
+    edges:
+        a -> b
+    constraints:
+        assert connected

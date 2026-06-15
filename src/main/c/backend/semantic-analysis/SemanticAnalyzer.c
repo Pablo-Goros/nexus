@@ -97,6 +97,10 @@ static void _checkConstraints(Analyzer * a, GraphDecl * g, GraphInfo * info) {
 						&& g->kind != GRAPH_KIND_DIRECTED) {
 					_error(a, "'strongly_connected' requires a directed graph: '%s'.", g->id);
 				}
+				if (c->simple == SIMPLE_CONNECTED
+						&& g->kind != GRAPH_KIND_UNDIRECTED) {
+					_error(a, "'connected' requires an undirected graph: '%s'.", g->id);
+				}
 				break;
 			case CONSTRAINT_REACHABLE:
 				if (!idSetContains(info->nodes, c->reachable.from)) {
@@ -107,11 +111,17 @@ static void _checkConstraints(Analyzer * a, GraphDecl * g, GraphInfo * info) {
 				}
 				break;
 			case CONSTRAINT_TREE:
+				if (g->kind != GRAPH_KIND_DIRECTED) {
+					_error(a, "'tree' requires a directed graph: '%s'.", g->id);
+				}
 				if (!idSetContains(info->nodes, c->tree.root)) {
 					_error(a, "tree 'rooted_at' references undeclared node: '%s'.", c->tree.root);
 				}
 				break;
 			case CONSTRAINT_BINARY_TREE:
+				if (g->kind != GRAPH_KIND_DIRECTED) {
+					_error(a, "'binary_tree' requires a directed graph: '%s'.", g->id);
+				}
 				if (!idSetContains(info->nodes, c->binaryTree.root)) {
 					_error(a, "binary_tree 'rooted_at' references undeclared node: '%s'.",
 						c->binaryTree.root);
@@ -135,10 +145,36 @@ static void _checkGraphScope(Analyzer * a, GraphDecl * g) {
 	if (g->nodes == NULL) {
 		_error(a, "Graph '%s' declares no nodes.", g->id);
 	}
+	int rootCount = 0, sourceCount = 0, sinkCount = 0;
 	for (NodeDeclList * it = g->nodes; it != NULL; it = it->next) {
 		if (!idSetAdd(info->nodes, it->value->id)) {
 			_error(a, "Duplicate node identifier: '%s'.", it->value->id);
 		}
+		switch (it->value->attr) {
+			case NODE_ATTR_ROOT: rootCount++; break;
+			case NODE_ATTR_SOURCE:
+				sourceCount++;
+				if (g->kind != GRAPH_KIND_DIRECTED) {
+					_error(a, "Node attribute 'source' requires a directed graph: '%s'.", g->id);
+				}
+				break;
+			case NODE_ATTR_SINK:
+				sinkCount++;
+				if (g->kind != GRAPH_KIND_DIRECTED) {
+					_error(a, "Node attribute 'sink' requires a directed graph: '%s'.", g->id);
+				}
+				break;
+			default: break;
+		}
+	}
+	if (rootCount > 1) {
+		_error(a, "Graph '%s' declares multiple 'root' nodes.", g->id);
+	}
+	if (sourceCount > 1) {
+		_error(a, "Graph '%s' declares multiple 'source' nodes.", g->id);
+	}
+	if (sinkCount > 1) {
+		_error(a, "Graph '%s' declares multiple 'sink' nodes.", g->id);
 	}
 	for (GroupDeclList * it = g->groups; it != NULL; it = it->next) {
 		if (!idSetAdd(info->groups, it->value->name)) {
