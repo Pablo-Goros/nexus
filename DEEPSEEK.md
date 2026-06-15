@@ -1496,7 +1496,7 @@ A stdlib-only Python module providing the graph type, the six algorithms, constr
 **Files:**
 - Create: `src/main/c/backend/code-generation/runtime/nexus_runtime.py`
 
-- [ ] **Step 1: Write the runtime library**
+- [x] **Step 1: Write the runtime library**
 
 `src/main/c/backend/code-generation/runtime/nexus_runtime.py`:
 
@@ -1869,7 +1869,7 @@ def write_json(value, filename):
         json.dump(value, handle, indent=2)
 ```
 
-- [ ] **Step 2: Smoke-test the runtime in isolation**
+- [x] **Step 2: Smoke-test the runtime in isolation**
 
 ```bash
 cd src/main/c/backend/code-generation/runtime
@@ -1887,7 +1887,7 @@ cd -
 ```
 Expected: prints a path dict with `distance: 3` and `path: ['a','b','c']`, a topological order, and valid DOT text; no exceptions.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add -A
@@ -1904,7 +1904,7 @@ The generator becomes a real tree-walk that prints a Python program to stdout. T
 - Modify: `src/main/c/backend/code-generation/Generator.c`
 - Create: `src/main/bash/test-codegen.sh`
 
-- [ ] **Step 1: Write the codegen harness**
+- [x] **Step 1: Write the codegen harness**
 
 `src/main/bash/test-codegen.sh`:
 
@@ -1941,7 +1941,7 @@ exit $STATUS
 
 Make it executable: `chmod +x src/main/bash/test-codegen.sh`.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 ```bash
 src/main/bash/build.sh
@@ -1949,7 +1949,7 @@ src/main/bash/test-codegen.sh
 ```
 Expected: `emitted no Python` — the generator is still the stub.
 
-- [ ] **Step 3: Drop the leftover calculator indentation constants**
+- [x] **Step 3: Drop the leftover calculator indentation constants**
 
 In `src/main/c/backend/code-generation/Generator.c`, delete the two unused constants in the `MODULE INTERNAL STATE` block (carried over from the base calculator) so only the logger remains:
 
@@ -1961,7 +1961,7 @@ static Logger * _logger = NULL;
 
 (Remove the `const char _indentationCharacter = ' ';` and `const char _indentationSize = 4;` lines — the Python output to stdout needs no indentation bookkeeping.)
 
-- [ ] **Step 4: Implement the generator header emission + graph construction**
+- [x] **Step 4: Implement the generator header emission + graph construction**
 
 Replace the body of `executeGenerator` in `src/main/c/backend/code-generation/Generator.c` and add emit helpers. Keep the module boilerplate; replace from `/** PUBLIC FUNCTIONS */` down with:
 
@@ -2048,7 +2048,7 @@ void executeGenerator(CompilerState * compilerState) {
 
 (`printf` writes to stdout, matching `_out`. `<stdio.h>` is already included via `Generator.h`.)
 
-- [ ] **Step 5: Verify GREEN**
+- [x] **Step 5: Verify GREEN**
 
 ```bash
 src/main/bash/build.sh
@@ -2056,14 +2056,14 @@ src/main/bash/test-codegen.sh
 ```
 Expected: `30-stage-i-integration, runs cleanly` — the emitted Python builds graph `G` and imports the runtime without error. (Derive/analysis lines come in Task 13; the program currently builds only the graphs.)
 
-- [ ] **Step 6: Confirm the existing suite is unaffected**
+- [x] **Step 6: Confirm the existing suite is unaffected**
 
 ```bash
 src/main/bash/test.sh
 ```
 Expected: accept tests still exit 0 (generator now prints Python to stdout, which `test.sh` discards). Rejects unchanged.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add -A
