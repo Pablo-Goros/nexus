@@ -1,0 +1,9 @@
+graph G:
+    kind directed
+    nodes:
+        a
+        b
+    edges:
+        a -> b
+analysis M on G:
+    run max_flow from a to b as f

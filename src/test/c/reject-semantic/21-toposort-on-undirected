@@ -1,0 +1,9 @@
+graph G:
+    kind undirected
+    nodes:
+        a
+        b
+    edges:
+        a -- b
+analysis M on G:
+    run topological_sort as r
