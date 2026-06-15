@@ -2433,7 +2433,7 @@ Write the required report as Markdown (export to PDF for delivery). Pull content
 **Files:**
 - Create: `docs/report/Stage-III-Report.md`
 
-- [ ] **Step 1: Write the report draft**
+- [x] **Step 1: Write the report draft**
 
 `docs/report/Stage-III-Report.md` with the mandated sections, each filled from the implementation:
 
@@ -2496,7 +2496,7 @@ Dragon Book and any sources actually consulted.
 
 Expand each section into prose during delivery; this is the skeleton to fill, not a placeholder for code.
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add -A
